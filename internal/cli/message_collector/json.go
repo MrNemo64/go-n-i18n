@@ -11,13 +11,13 @@ import (
 type JsonMessageScanner struct {
 }
 
-func (s JsonMessageScanner) FindAllMessagesInDir(dir string) (map[string]map[string]string, error) {
-	result := make(map[string]map[string]string)
+func (s JsonMessageScanner) FindAllMessagesInDir(dir string) (map[string]*CollectedMessages, error) {
+	result := make(map[string]*CollectedMessages)
 	err := s.scanMessagesInDir(dir, result, []string{})
 	return result, err
 }
 
-func (s JsonMessageScanner) scanMessagesInDir(dir string, dest map[string]map[string]string, pres []string) error {
+func (s JsonMessageScanner) scanMessagesInDir(dir string, dest map[string]*CollectedMessages, pres []string) error {
 	files, err := os.ReadDir(dir)
 	if err != nil {
 		return fmt.Errorf("could not list files from directory '%s': %w", dir, err)
@@ -33,7 +33,10 @@ func (s JsonMessageScanner) scanMessagesInDir(dir string, dest map[string]map[st
 			lang := strings.TrimSuffix(file.Name(), filepath.Ext(file.Name()))
 			collection, ok := dest[lang]
 			if !ok {
-				collection = make(map[string]string)
+				collection = &CollectedMessages{
+					LanguageTag: lang,
+					Messages:    make(map[string]*MessageInstance),
+				}
 				dest[lang] = collection
 			}
 			s.scanFileForMessages(filepath.Join(dir, file.Name()), collection, pres)
@@ -42,7 +45,7 @@ func (s JsonMessageScanner) scanMessagesInDir(dir string, dest map[string]map[st
 	return nil
 }
 
-func (s JsonMessageScanner) scanFileForMessages(file string, dest map[string]string, pres []string) error {
+func (s JsonMessageScanner) scanFileForMessages(file string, dest *CollectedMessages, pres []string) error {
 	contents, err := os.ReadFile(file)
 	if err != nil {
 		return fmt.Errorf("could not read contents of file %s: %w", strings.Join(append(pres, file), string(filepath.Separator)), err)

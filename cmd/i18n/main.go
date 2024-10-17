@@ -19,5 +19,8 @@ func main() {
 		os.Exit(1)
 	}
 
-	cli.Main(*messagesDir, *defaultLanguage)
+	cli.Main(cli.CliArgs{
+		MessagesDirectory: *messagesDir,
+		DefaultLanguage:   *defaultLanguage,
+	})
 }
