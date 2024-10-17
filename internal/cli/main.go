@@ -26,11 +26,23 @@ func Main(args CliArgs) {
 		checkKeys(v)
 	}
 
-	_, found := allMessages[args.DefaultLanguage]
-	if !found {
+	if _, found := allMessages[args.DefaultLanguage]; !found {
 		util.Exit(1, fmt.Sprintf("Could not find any message for the default language '%s'", args.DefaultLanguage))
 	}
 
+	for _, v := range allMessages {
+		normalizeKeys(v)
+	}
+
+}
+
+func normalizeKeys(cm *messagecollector.CollectedMessages) {
+	normalizer := KeyNormalizer()
+	newMap := make(map[string]*messagecollector.MessageInstance, len(cm.Messages))
+	for k, v := range cm.Messages {
+		newMap[normalizer.Normalize(k)] = v
+	}
+	cm.Messages = newMap
 }
 
 func checkDuplicatedKeys(cm *messagecollector.CollectedMessages) {

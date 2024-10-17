@@ -7,6 +7,7 @@ import (
 )
 
 func TestKeyValidator_Validate(t *testing.T) {
+	t.Parallel()
 	validator := cli.KeyValidator()
 	notIfFalse := func(v bool) string {
 		if v {
