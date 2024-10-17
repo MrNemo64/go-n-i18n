@@ -1,0 +1,8 @@
+{
+  "first": "primero",
+  "seccond_message": "segundo mensaje",
+  "message_with_args": "este mensaje tiene una cadena de texto '{str:string}', un número {num:int} y un booleano {b:bool}",
+  "in": {
+    "depeer": "este mensaje está más a dentro pero no por las carpetas"
+  }
+}
