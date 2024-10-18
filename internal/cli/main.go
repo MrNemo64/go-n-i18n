@@ -7,33 +7,37 @@ import (
 	"strings"
 
 	messagecollector "github.com/MrNemo64/go-n-i18n/internal/cli/message_collector"
-	"github.com/MrNemo64/go-n-i18n/internal/cli/util"
 )
 
 type CliArgs struct {
 	MessagesDirectory string
 	DefaultLanguage   string
-	LogOptions        *slog.HandlerOptions
+	LogLevel          slog.Level
 }
 
 func Main(args CliArgs) {
-	log := slog.New(slog.NewTextHandler(os.Stdout, args.LogOptions))
+	log := slog.New(slog.NewTextHandler(os.Stdout, &slog.HandlerOptions{
+		AddSource: false,
+		Level:     args.LogLevel,
+	}))
 
 	allMessages, err := messagecollector.JsonMessageScanner{}.FindAllMessagesInDir(args.MessagesDirectory)
 	if err != nil {
-		util.Exit(1, fmt.Sprintf("Could not collect all the messages in directory '%s': %s", args.MessagesDirectory, err.Error()))
+		log.Error(fmt.Sprintf("Could not collect all the messages in directory '%s': %s", args.MessagesDirectory, err.Error()))
+		os.Exit(1)
 	}
 
 	for _, v := range allMessages {
-		checkDuplicatedKeys(v)
+		checkDuplicatedKeys(v, log)
 	}
 	for _, v := range allMessages {
-		checkKeys(v)
+		checkKeys(v, log)
 	}
 
 	defaultLanguage, foundDelfaultLanguage := allMessages[args.DefaultLanguage]
 	if !foundDelfaultLanguage {
-		util.Exit(1, fmt.Sprintf("Could not find any message for the default language '%s'", args.DefaultLanguage))
+		log.Error(fmt.Sprintf("Could not find any message for the default language '%s'", args.DefaultLanguage))
+		os.Exit(1)
 	}
 
 	for _, v := range allMessages {
@@ -61,8 +65,8 @@ func checkHasKeys(reference *messagecollector.CollectedMessages, cm *messagecoll
 	var keysToDelete []string
 	for keyInCm := range cm.Messages {
 		if _, referenceHasKey := reference.Messages[keyInCm]; !referenceHasKey {
-			log.Warn(fmt.Sprintf("The language %s has an extra key '%s' that %s does not have. Ignoring it", cm.LanguageTag, keyInCm, reference.LanguageTag))
-			keysToDelete = append(keysToDelete, keyInCm) // is it safe to delete as i iterate?
+			log.Warn(fmt.Sprintf(fmt.Sprintf("The language %s has an extra key '%s' that %s does not have. Ignoring it", cm.LanguageTag, keyInCm, reference.LanguageTag)))
+			keysToDelete = append(keysToDelete, keyInCm)
 		}
 	}
 	for _, key := range keysToDelete {
@@ -79,16 +83,18 @@ func normalizeKeys(cm *messagecollector.CollectedMessages) {
 	cm.Messages = newMap
 }
 
-func checkDuplicatedKeys(cm *messagecollector.CollectedMessages) {
+func checkDuplicatedKeys(cm *messagecollector.CollectedMessages, log *slog.Logger) {
 	duplicates := cm.FindDuplicatedKeys()
 	if len(duplicates) == 1 {
-		util.Exit(1, fmt.Sprintf("The language '%s' has a duplicated key: %s", cm.LanguageTag, duplicates[0]))
+		log.Error(fmt.Sprintf("The language '%s' has a duplicated key: %s", cm.LanguageTag, duplicates[0]))
+		os.Exit(1)
 	} else if len(duplicates) > 1 {
-		util.Exit(1, fmt.Sprintf("The language '%s' has several duplicated keys: %s", cm.LanguageTag, strings.Join(duplicates, ", ")))
+		log.Error(fmt.Sprintf("The language '%s' has several duplicated keys: %s", cm.LanguageTag, strings.Join(duplicates, ", ")))
+		os.Exit(1)
 	}
 }
 
-func checkKeys(cm *messagecollector.CollectedMessages) {
+func checkKeys(cm *messagecollector.CollectedMessages, log *slog.Logger) {
 	var invalidKeys []string
 	validator := KeyValidator()
 	for key := range cm.Messages {
@@ -97,6 +103,7 @@ func checkKeys(cm *messagecollector.CollectedMessages) {
 		}
 	}
 	if len(invalidKeys) > 0 {
-		util.Exit(1, fmt.Sprintf("The language '%s' has invalid keys: %s", cm.LanguageTag, strings.Join(invalidKeys, ", ")))
+		log.Error(fmt.Sprintf("The language '%s' has invalid keys: %s", cm.LanguageTag, strings.Join(invalidKeys, ", ")))
+		os.Exit(1)
 	}
 }
