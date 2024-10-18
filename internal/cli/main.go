@@ -5,8 +5,6 @@ import (
 	"log/slog"
 	"os"
 	"strings"
-
-	messagecollector "github.com/MrNemo64/go-n-i18n/internal/cli/message_collector"
 )
 
 type CliArgs struct {
@@ -21,7 +19,7 @@ func Main(args CliArgs) {
 		Level:     args.LogLevel,
 	}))
 
-	allMessages, err := messagecollector.JsonMessageScanner{}.FindAllMessagesInDir(args.MessagesDirectory)
+	allMessages, err := JsonMessageScanner{}.FindAllMessagesInDir(args.MessagesDirectory)
 	if err != nil {
 		log.Error(fmt.Sprintf("Could not collect all the messages in directory '%s': %s", args.MessagesDirectory, err.Error()))
 		os.Exit(1)
@@ -52,11 +50,11 @@ func Main(args CliArgs) {
 	}
 }
 
-func checkHasKeys(reference *messagecollector.CollectedMessages, cm *messagecollector.CollectedMessages, log *slog.Logger) {
+func checkHasKeys(reference *CollectedMessages, cm *CollectedMessages, log *slog.Logger) {
 	for keyInReference, messageInReference := range reference.Messages {
 		if _, cmHasKey := cm.Messages[keyInReference]; !cmHasKey {
 			log.Warn(fmt.Sprintf("The language %s is missing the key '%s'. Using the key from %s", cm.LanguageTag, keyInReference, reference.LanguageTag))
-			cm.Messages[keyInReference] = &messagecollector.MessageInstance{
+			cm.Messages[keyInReference] = &MessageInstance{
 				Message:    messageInReference.Message,
 				TimesFound: 1,
 			}
@@ -74,16 +72,16 @@ func checkHasKeys(reference *messagecollector.CollectedMessages, cm *messagecoll
 	}
 }
 
-func normalizeKeys(cm *messagecollector.CollectedMessages) {
+func normalizeKeys(cm *CollectedMessages) {
 	normalizer := KeyNormalizer()
-	newMap := make(map[string]*messagecollector.MessageInstance, len(cm.Messages))
+	newMap := make(map[string]*MessageInstance, len(cm.Messages))
 	for k, v := range cm.Messages {
 		newMap[normalizer.Normalize(k)] = v
 	}
 	cm.Messages = newMap
 }
 
-func checkDuplicatedKeys(cm *messagecollector.CollectedMessages, log *slog.Logger) {
+func checkDuplicatedKeys(cm *CollectedMessages, log *slog.Logger) {
 	duplicates := cm.FindDuplicatedKeys()
 	if len(duplicates) == 1 {
 		log.Error(fmt.Sprintf("The language '%s' has a duplicated key: %s", cm.LanguageTag, duplicates[0]))
@@ -94,7 +92,7 @@ func checkDuplicatedKeys(cm *messagecollector.CollectedMessages, log *slog.Logge
 	}
 }
 
-func checkKeys(cm *messagecollector.CollectedMessages, log *slog.Logger) {
+func checkKeys(cm *CollectedMessages, log *slog.Logger) {
 	var invalidKeys []string
 	validator := KeyValidator()
 	for key := range cm.Messages {
