@@ -28,6 +28,8 @@ type MessageEntryValue interface {
 type MessageEntry interface {
 	Key() string
 	Kind() MessageEntryKind
+	Languages() *Set[string]
+	EnsureAllLanguagesPresent(defLang string, languages []string) bool
 
 	AsLiteral() *MessageEntryLiteralString
 	AsBag() *MessageEntryMessageBag
@@ -87,6 +89,17 @@ func (b *MessageEntryMessageBag) FindEntry(path ...string) (MessageEntry, error)
 	return entry, nil
 }
 
+func (b *MessageEntryMessageBag) Languages() *Set[string] {
+	if len(b.entries) == 0 {
+		return NewSet[string]()
+	}
+	set := b.entries[0].Languages()
+	for i := 1; i < len(b.entries); i++ {
+		set.AddAll(b.entries[i].Languages())
+	}
+	return set
+}
+
 func (b *MessageEntryMessageBag) FindOrCreateChildBag(path ...string) (*MessageEntryMessageBag, error) {
 	actual := b
 	for i := 0; i < len(path); i++ {
@@ -136,6 +149,44 @@ func (b *MessageEntryMessageBag) AddEntries(entries ...MessageEntry) error {
 	return nil
 }
 
+func (b *MessageEntryMessageBag) RemoveEntriesWithoutLang(lang string) []string {
+	var removed []string
+	var remaining []MessageEntry
+	for _, entry := range b.entries {
+		if entry.Kind() == MessageEntryBag {
+			if b.Key() == "" {
+				removed = append(removed, entry.AsBag().RemoveEntriesWithoutLang(lang)...)
+			} else {
+				for _, r := range entry.AsBag().RemoveEntriesWithoutLang(lang) {
+					removed = append(removed, b.Key()+"."+r)
+				}
+			}
+		} else if entry.Kind() == MessageEntryLiteral {
+			if entry.Languages().Contains(lang) {
+				remaining = append(remaining, entry)
+			} else {
+				if b.Key() == "" {
+					removed = append(removed, entry.Key())
+				} else {
+					removed = append(removed, b.Key()+"."+entry.Key())
+				}
+			}
+		}
+	}
+	b.entries = remaining
+	return removed
+}
+
+func (b *MessageEntryMessageBag) EnsureAllLanguagesPresent(defLang string, languages []string) bool {
+	hadToFill := false
+	for _, entry := range b.entries {
+		if entry.EnsureAllLanguagesPresent(defLang, languages) {
+			hadToFill = true
+		}
+	}
+	return hadToFill
+}
+
 type MessageEntryLiteralString struct {
 	key     string
 	message map[string]string // language tag -> message
@@ -153,6 +204,7 @@ func (l *MessageEntryLiteralString) AsLiteral() *MessageEntryLiteralString { ret
 func (*MessageEntryLiteralString) AsBag() *MessageEntryMessageBag {
 	panic("called AsBag in a MessageEntryLiteralString")
 }
+
 func (l *MessageEntryLiteralString) Merge(other *MessageEntryLiteralString) error {
 	for lang, message := range other.message {
 		if existingMsg, found := l.message[lang]; found {
@@ -161,4 +213,23 @@ func (l *MessageEntryLiteralString) Merge(other *MessageEntryLiteralString) erro
 		l.message[lang] = message
 	}
 	return nil
+}
+
+func (l *MessageEntryLiteralString) Languages() *Set[string] {
+	set := NewSet[string]()
+	for k := range l.message {
+		set.Add(k)
+	}
+	return set
+}
+
+func (l *MessageEntryLiteralString) EnsureAllLanguagesPresent(defLang string, languages []string) bool {
+	hadToFill := false
+	for _, lang := range languages {
+		if _, hasIt := l.message[lang]; !hasIt {
+			l.message[lang] = l.message[defLang]
+			hadToFill = true
+		}
+	}
+	return hadToFill
 }
