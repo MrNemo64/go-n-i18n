@@ -26,6 +26,7 @@ func (m MessagesParser) scanMessagesInDir(walker DirWalker) (*MessageEntryMessag
 	root := &MessageEntryMessageBag{
 		key:     "",
 		entries: make([]MessageEntry, 0),
+		parent:  nil,
 	}
 	for {
 		file, err := walker.Next()
@@ -96,8 +97,12 @@ func (m MessagesParser) parseGroupOfMessages(entries *orderedmap.OrderedMap, des
 				}
 			} else if stringValue, ok := value.(string); ok {
 				if m.hasArguments.MatchString(stringValue) {
-					if err := dest.AddEntries(m.parseParametrizedString(stringValue)); err != nil {
-						return fmt.Errorf("could not add parametrized entry: %w", err)
+					// TODO
+					//if err := dest.AddEntries(m.parseParametrizedString(stringValue)); err != nil {
+					//	return fmt.Errorf("could not add parametrized entry: %w", err)
+					//}
+					if err := dest.AddEntries(m.parseLiteralString(key, stringValue, file.Language())); err != nil {
+						return fmt.Errorf("could not add literal entry: %w", err)
 					}
 				} else {
 					if err := dest.AddEntries(m.parseLiteralString(key, stringValue, file.Language())); err != nil {

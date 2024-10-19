@@ -23,6 +23,8 @@ func main() {
 	cli.Main(cli.CliArgs{
 		MessagesDirectory: *messagesDir,
 		DefaultLanguage:   *defaultLanguage,
+		OutFile:           "generated_lang.go",
+		Package:           os.Getenv("GOPACKAGE"),
 		LogLevel:          slog.LevelDebug,
 	})
 }

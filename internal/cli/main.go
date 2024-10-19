@@ -8,6 +8,8 @@ import (
 type CliArgs struct {
 	MessagesDirectory string
 	DefaultLanguage   string
+	OutFile           string
+	Package           string
 	LogLevel          slog.Level
 }
 
@@ -44,5 +46,11 @@ func Main(args CliArgs) {
 
 	if messages.EnsureAllLanguagesPresent(args.DefaultLanguage, allLanguages.Get()) {
 		log.Warn("Some entries had not all the messages filled. Using the message from the default language")
+	}
+
+	log.Info("Generating code")
+	if err := WriteCode(messages, args); err != nil {
+		log.Error("Could not write code", "err", err)
+		os.Exit(1)
 	}
 }

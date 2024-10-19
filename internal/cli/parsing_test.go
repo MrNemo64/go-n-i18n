@@ -118,7 +118,7 @@ func parserOnSeveralFilesOneLang(t *testing.T) {
 		},
 	}))
 	require.NoError(t, err)
-	require.Equal(t, bag("", []cli.MessageEntry{
+	expected := bag("", []cli.MessageEntry{
 		literal("key1", "en-EN", "value1"),
 		literal("key2", "en-EN", "value2"),
 		bag("key3", []cli.MessageEntry{
@@ -127,7 +127,8 @@ func parserOnSeveralFilesOneLang(t *testing.T) {
 				literal("key6", "en-EN", "value6"),
 			}),
 		}),
-	}), result)
+	})
+	require.Equal(t, expected, result)
 }
 
 func parserOnSeveralFilesCollidingOneLang(t *testing.T) {
@@ -360,7 +361,11 @@ func bag(key string, entries []cli.MessageEntry) *cli.MessageEntryMessageBag {
 	sort.Slice(entries, func(i, j int) bool {
 		return entries[i].Key() < entries[j].Key()
 	})
-	return cli.MessageEntryMessageBag{}.With(key, entries)
+	e := cli.MessageEntryMessageBag{}.With(key, entries)
+	for _, entry := range entries {
+		entry.AssignParent(e)
+	}
+	return e
 }
 
 func literal(key string, message ...string) *cli.MessageEntryLiteralString {

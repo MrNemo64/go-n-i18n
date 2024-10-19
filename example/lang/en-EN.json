@@ -3,6 +3,9 @@
   "seccond_message": "seccond message",
   "message_with_args": "this message embedsa a string '{str:string}', a number {num:int} and a boolean {b:bool}",
   "in": {
-    "depeer": "this message is deeper but not because of dirs"
+    "depeer": "this message is deeper but not because of dirs",
+    "even-deeper": {
+      "msg": "r/im14andthisisdeep"
+    }
   }
 }
