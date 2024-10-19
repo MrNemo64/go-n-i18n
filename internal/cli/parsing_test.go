@@ -47,6 +47,9 @@ func TestJsonParser(t *testing.T) {
 	t.Run("Parser on several files and one language", parserOnSeveralFilesOneLang)
 	t.Run("Parser on several files with colliding bags that merge and one language", parserOnSeveralFilesCollidingOneLang)
 	t.Run("Parser on several files with colliding bags that merge and several languages", parserOnSeveralFilesCollidingSeveralLang)
+
+	t.Run("Parsin fails on duplicated key", parseFailOnDuplicate)
+	t.Run("Parsin fails on parent key is not bag", parseFailParentKeyNotBag)
 }
 
 func parserOnEmptyWalker(t *testing.T) {
@@ -290,6 +293,67 @@ func parserOnSeveralFilesCollidingSeveralLang(t *testing.T) {
 		}),
 	})
 	require.Equal(t, expected, result)
+}
+
+func parseFailOnDuplicate(t *testing.T) {
+	t.Parallel()
+	_, err := cli.ParseJson(StubWalker([]stubFileEntry{
+		{
+			path:     []string{},
+			language: "en-EN",
+			contents: `{
+				"key1": "value1",
+				"key3": {
+					"key4": "value4",
+					"key5": {
+						"key6": "value6"
+					}
+				}
+			}
+			`,
+		},
+		{
+			path:     []string{},
+			language: "en-EN",
+			contents: `{
+				"key1": "again"
+			}
+			`,
+		},
+	}))
+	require.ErrorIs(t, err, cli.ErrLiteralMessageRedefinition)
+}
+
+func parseFailParentKeyNotBag(t *testing.T) {
+	t.Parallel()
+	_, err := cli.ParseJson(StubWalker([]stubFileEntry{
+		{
+			path:     []string{},
+			language: "en-EN",
+			contents: `{
+				"key1": "value1",
+				"key2": "value2",
+				"key3": {
+					"key4": "value4",
+					"key5": {
+						"key6": "value6"
+					}
+				}
+			}
+			`,
+		},
+		{
+			path:     []string{},
+			language: "en-EN",
+			contents: `{
+				"key2": {
+					"key7": "since key 2 has been defined in the file before as 'value2' this will fail because it requires key2 to be a bag"
+				}
+			}
+			`,
+		},
+	}))
+	require.Error(t, err)
 }
 
 func bag(key string, entries []cli.MessageEntry) *cli.MessageEntryMessageBag {

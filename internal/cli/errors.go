@@ -1,6 +1,8 @@
 package cli
 
-import "fmt"
+import (
+	"fmt"
+)
 
 type Error struct {
 	msg  string
@@ -22,5 +24,21 @@ func (err Error) Is(other error) bool {
 	if !ok {
 		return false
 	}
-	return casted.msg == err.msg
+	if casted.msg == err.msg {
+		return true
+	}
+	return false
+}
+
+func (err Error) Unwrap() []error {
+	if err.args == nil {
+		return []error{}
+	}
+	var errors []error
+	for _, arg := range err.args {
+		if e, ok := arg.(error); ok {
+			errors = append(errors, e)
+		}
+	}
+	return errors
 }
