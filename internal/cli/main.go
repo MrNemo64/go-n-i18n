@@ -23,5 +23,5 @@ func Main(args CliArgs) {
 		os.Exit(1)
 	}
 
-	ParseJson(walker, log)
+	ParseJson(walker)
 }

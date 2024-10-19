@@ -10,22 +10,30 @@ import (
 var ErrNoMoreFiles = errors.New("no more files in the walker")
 
 type DirWalker interface {
-	Next() (*FileEntry, error)
+	Next() (FileEntry, error)
 }
 
-type FileEntry struct {
-	Path     []string // relative to origin
-	Language string
-	FullPath string
+type FileEntry interface {
+	Path() []string
+	Language() string
+	FullPath() string
+	ReadContents() ([]byte, error)
 }
 
-func (fe FileEntry) ReadContents() ([]byte, error) {
-	return os.ReadFile(fe.FullPath)
+type IOFileEntry struct {
+	path     []string
+	language string
+	fullPath string
 }
+
+func (fe *IOFileEntry) Path() []string                { return fe.path }
+func (fe *IOFileEntry) Language() string              { return fe.language }
+func (fe *IOFileEntry) FullPath() string              { return fe.fullPath }
+func (fe *IOFileEntry) ReadContents() ([]byte, error) { return os.ReadFile(fe.fullPath) }
 
 type ioDirWalker struct {
 	Origin  string
-	files   []FileEntry
+	files   []IOFileEntry
 	current int
 }
 
@@ -63,10 +71,10 @@ func (walker *ioDirWalker) loadFiles() error {
 			// Save only the file name without the extension
 			fileNameWithoutExt := strings.TrimSuffix(d.Name(), filepath.Ext(d.Name()))
 
-			walker.files = append(walker.files, FileEntry{
-				Path:     relativePath,
-				Language: fileNameWithoutExt,
-				FullPath: path,
+			walker.files = append(walker.files, IOFileEntry{
+				path:     relativePath,
+				language: fileNameWithoutExt,
+				fullPath: path,
 			})
 		}
 		return nil
@@ -74,7 +82,7 @@ func (walker *ioDirWalker) loadFiles() error {
 	return err
 }
 
-func (walker *ioDirWalker) Next() (*FileEntry, error) {
+func (walker *ioDirWalker) Next() (FileEntry, error) {
 	walker.current++
 	if walker.current >= len(walker.files) || walker.files == nil {
 		return nil, ErrNoMoreFiles
