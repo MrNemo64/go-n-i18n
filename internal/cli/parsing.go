@@ -97,12 +97,8 @@ func (m MessagesParser) parseGroupOfMessages(entries *orderedmap.OrderedMap, des
 				}
 			} else if stringValue, ok := value.(string); ok {
 				if m.hasArguments.MatchString(stringValue) {
-					// TODO
-					//if err := dest.AddEntries(m.parseParametrizedString(stringValue)); err != nil {
-					//	return fmt.Errorf("could not add parametrized entry: %w", err)
-					//}
-					if err := dest.AddEntries(m.parseLiteralString(key, stringValue, file.Language())); err != nil {
-						return fmt.Errorf("could not add literal entry: %w", err)
+					if err := dest.AddEntries(m.parseParametrizedString(key, stringValue, file.Language())); err != nil {
+						return fmt.Errorf("could not add parametrized entry: %w", err)
 					}
 				} else {
 					if err := dest.AddEntries(m.parseLiteralString(key, stringValue, file.Language())); err != nil {
@@ -126,7 +122,7 @@ func (MessagesParser) parseLiteralString(key, message, lang string) *MessageEntr
 	}
 }
 
-func (MessagesParser) parseParametrizedString(message string) MessageEntry {
+func (MessagesParser) parseParametrizedString(key, message, lang string) *MessageEntryParametrizedString {
 	// TODO
 	panic("not done")
 }
