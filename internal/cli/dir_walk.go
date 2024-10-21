@@ -63,9 +63,12 @@ func (walker *ioDirWalker) loadFiles() error {
 				dirPath = ""
 			}
 			// Use empty slice if path is "."
-			relativePath := filepath.SplitList(dirPath)
-			if len(relativePath) == 1 && relativePath[0] == "" {
-				relativePath = []string{}
+			splitedRelativePath := strings.Split(dirPath, string(filepath.Separator))
+			var relativePath []string
+			for _, part := range splitedRelativePath {
+				if part != "" {
+					relativePath = append(relativePath, part)
+				}
 			}
 
 			// Save only the file name without the extension
