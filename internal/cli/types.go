@@ -44,20 +44,33 @@ type MessageFunctionDefinition struct {
 	Message *MessageEntryLiteralString
 }
 
-func (f *MessageFunctionDefinition) Name() string       { return f.name }
-func (f *MessageFunctionDefinition) ReturnType() string { return "string" }
+func (f *MessageFunctionDefinition) Name() string                { return f.name }
+func (f *MessageFunctionDefinition) ReturnType() string          { return "string" }
+func (*MessageFunctionDefinition) Arguments() []*MessageArgument { return []*MessageArgument{} }
+
+type ParametrizedFunctionDefinition struct {
+	name    string
+	Message *MessageEntryParametrizedString
+	Args    []*MessageArgument
+}
+
+func (f *ParametrizedFunctionDefinition) Name() string                  { return f.name }
+func (f *ParametrizedFunctionDefinition) ReturnType() string            { return "string" }
+func (f *ParametrizedFunctionDefinition) Arguments() []*MessageArgument { return f.Args }
 
 type BagFunctionDefinition struct {
 	name       string
 	returnType string
 }
 
-func (f *BagFunctionDefinition) Name() string       { return f.name }
-func (f *BagFunctionDefinition) ReturnType() string { return f.returnType }
+func (f *BagFunctionDefinition) Name() string                { return f.name }
+func (f *BagFunctionDefinition) ReturnType() string          { return f.returnType }
+func (*BagFunctionDefinition) Arguments() []*MessageArgument { return []*MessageArgument{} }
 
 type FunctionDeclaration interface {
 	Name() string
 	ReturnType() string
+	Arguments() []*MessageArgument
 }
 
 type InterfaceDefinition struct {

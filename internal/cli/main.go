@@ -3,6 +3,7 @@ package cli
 import (
 	"log/slog"
 	"os"
+	"strings"
 )
 
 type CliArgs struct {
@@ -41,7 +42,8 @@ func Main(args CliArgs) {
 	}
 
 	if removedEntries := messages.RemoveEntriesWithoutLang(args.DefaultLanguage); len(removedEntries) > 0 {
-		log.Warn("The following entries are not present in the default language. Ignoring them", "ignored-entries", removedEntries)
+		log.Warn("The following entries are not present in the default language. Ignoring them",
+			"ignored-entries", Map(removedEntries, func(t *MessageEntry) string { return strings.Join((*t).FullPath(), ".") }))
 	}
 
 	if messages.EnsureAllLanguagesPresent(args.DefaultLanguage, allLanguages.Get()) {

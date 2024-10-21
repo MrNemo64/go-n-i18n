@@ -10,7 +10,7 @@
       "request": "launch",
       "mode": "auto",
       "program": "./cmd/i18n/main.go",
-      "args": ["-default-language", "en-EN", "-messages", "${cwd}/example"]
+      "args": ["-default-language", "en-EN", "-messages", "${cwd}/example/lang"]
     }
   ]
 }

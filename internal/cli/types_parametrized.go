@@ -1,6 +1,9 @@
 package cli
 
-import "errors"
+import (
+	"errors"
+	"strings"
+)
 
 type MessageArgument struct {
 	Name   string
@@ -26,6 +29,9 @@ func (*MessageEntryParametrizedString) Kind() MessageEntryKind                  
 func (p *MessageEntryParametrizedString) Key() string                                     { return p.key }
 func (p *MessageEntryParametrizedString) AsParametrized() *MessageEntryParametrizedString { return p }
 func (p *MessageEntryParametrizedString) Args() []*MessageArgument                        { return p.arguments }
+func (p *MessageEntryParametrizedString) Message(lang string) string {
+	return p.message[strings.ReplaceAll(lang, "_", "-")]
+}
 
 func (p *MessageEntryParametrizedString) FullPath() []string {
 	return append(p.parent.FullPath(), p.key)
@@ -124,6 +130,10 @@ func (p *MessageEntryParametrizedString) AddArgument(name, kind, format string) 
 		}
 	}
 	return nil
+}
+
+func (p *MessageEntryParametrizedString) DefineFunction(namer MessageEntryNamer) *ParametrizedFunctionDefinition {
+	return &ParametrizedFunctionDefinition{name: namer.FunctionName(p), Message: p, Args: p.arguments}
 }
 
 func (*MessageEntryParametrizedString) AsBag() *MessageEntryMessageBag {

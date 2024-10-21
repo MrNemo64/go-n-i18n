@@ -6,6 +6,14 @@ func copySlice[T any](arr []T, newElement ...T) []T {
 	return append(copied, newElement...)
 }
 
+func Map[T any, R any](v []T, mapper func(*T) R) []R {
+	r := make([]R, len(v))
+	for i := 0; i < len(v); i++ {
+		r[i] = mapper(&v[i])
+	}
+	return r
+}
+
 type Set[T comparable] struct {
 	values []T
 }

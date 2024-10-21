@@ -3,6 +3,7 @@ package cli
 import (
 	"fmt"
 	"os"
+	"regexp"
 	"strings"
 )
 
@@ -90,7 +91,7 @@ func (w *codeWritter) writeInterface(def *InterfaceDefinition) {
 	for _, functionDefinition := range def.Functions {
 		w.WriteString("    ")
 		w.WriteString(functionDefinition.Name())
-		w.WriteString("() ")
+		w.writeFunctionArgs(functionDefinition.Arguments())
 		w.WriteString(functionDefinition.ReturnType())
 		w.WriteString("\n")
 	}
@@ -98,6 +99,19 @@ func (w *codeWritter) writeInterface(def *InterfaceDefinition) {
 	for _, interfaceDefinition := range def.Interfaces {
 		w.writeInterface(interfaceDefinition)
 	}
+}
+
+func (w *codeWritter) writeFunctionArgs(args []*MessageArgument) {
+	if len(args) == 0 {
+		w.WriteString("() ")
+		return
+	}
+	w.WriteString("(")
+	w.WriteString(strings.Join(Map(args, func(t **MessageArgument) string {
+		ma := *t
+		return ma.Name + " " + ma.Type.Type
+	}), ", "))
+	w.WriteString(") ")
 }
 
 func (w *codeWritter) writeStructs() {
@@ -116,6 +130,8 @@ func (w *codeWritter) writeLangStruct(lang string, def *InterfaceDefinition) {
 			w.writeBagFunctions(lang, structName, f.(*BagFunctionDefinition))
 		case *MessageFunctionDefinition:
 			w.writeMessageFunctions(lang, structName, f.(*MessageFunctionDefinition))
+		case *ParametrizedFunctionDefinition:
+			w.writeParametrizedFunctions(lang, structName, f.(*ParametrizedFunctionDefinition))
 		}
 	}
 	for _, interfaceDefinition := range def.Interfaces {
@@ -129,4 +145,42 @@ func (w *codeWritter) writeBagFunctions(lang string, structName string, f *BagFu
 
 func (w *codeWritter) writeMessageFunctions(lang string, structName string, f *MessageFunctionDefinition) {
 	w.WriteString(fmt.Sprintf("func (%s) %s() string { return \"%s\" }\n", structName, f.Name(), f.Message.Message(lang)))
+}
+
+func (w *codeWritter) writeParametrizedFunctions(lang string, structName string, f *ParametrizedFunctionDefinition) {
+	w.WriteString(fmt.Sprintf("func (%s) %s", structName, f.Name()))
+	w.writeFunctionArgs(f.Args)
+	w.WriteString("string {\n")
+	w.WriteString("    return fmt.Sprintf(\"")
+	msg := f.Message.Message(lang)
+	msg, args := w.extractPartsAndFormats(msg, f.Args)
+	w.WriteString(msg)
+	w.WriteString("\", ")
+	w.WriteString(strings.Join(args, ", "))
+	w.WriteString(")\n")
+	w.WriteString("}\n")
+}
+
+func (*codeWritter) extractPartsAndFormats(msg string, args []*MessageArgument) (string, []string) {
+	// TODO already needed to copy paste this pattern in 2 places
+	// ALSO, the extraction of parts should probably be done on the parsing side not the writing but oh well...
+	argumentExtractor := regexp.MustCompile(`\{([a-zA-Z_][a-zA-Z0-9_]*)(?::([a-zA-Z0-9_]+))?(?::([a-zA-Z0-9_%.]+))?\}`)
+	var argNames []string
+
+	argMap := make(map[string]string)
+	for _, arg := range args {
+		argMap[arg.Name] = "%" + arg.Format
+	}
+
+	formattedMessage := argumentExtractor.ReplaceAllStringFunc(msg, func(match string) string {
+		matches := argumentExtractor.FindStringSubmatch(match)
+		argName := matches[1]
+		argNames = append(argNames, argName)
+		if format, found := argMap[argName]; found {
+			return format
+		}
+		return match
+	})
+
+	return formattedMessage, argNames
 }

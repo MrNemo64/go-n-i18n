@@ -142,13 +142,14 @@ func (b *MessageEntryMessageBag) RemoveEntriesWithoutLang(lang string) []Message
 	var removed []MessageEntry
 	var remaining []MessageEntry
 	for _, entry := range b.entries {
-		if entry.Kind() == MessageEntryBag {
+		switch entry.Kind() {
+		case MessageEntryBag:
 			if len(entry.AsBag().entries) > 0 {
 				remaining = append(remaining, entry)
 			} else {
 				removed = append(removed, entry)
 			}
-		} else if entry.Kind() == MessageEntryLiteral {
+		case MessageEntryParametrized, MessageEntryLiteral:
 			if entry.Languages().Contains(lang) {
 				remaining = append(remaining, entry)
 			} else {
@@ -176,6 +177,8 @@ func (b *MessageEntryMessageBag) DefineInterface(namer MessageEntryNamer) *Inter
 		switch entry.Kind() {
 		case MessageEntryLiteral:
 			definition.Functions = append(definition.Functions, entry.AsLiteral().DefineFunction(namer))
+		case MessageEntryParametrized:
+			definition.Functions = append(definition.Functions, entry.AsParametrized().DefineFunction(namer))
 		case MessageEntryBag:
 			inner := entry.AsBag().DefineInterface(namer)
 			definition.Functions = append(definition.Functions, &BagFunctionDefinition{
