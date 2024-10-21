@@ -92,14 +92,3 @@ func (en_EN_Messages) Key7(messages int) string {
     }
 }
 ```
-
-## TODOs
-
-- [ ] Collect messages
-- [ ] Parse message structure
-- [ ] Verify messages
-  - [ ] Check key is valid
-  - [ ] Check all conditional keys appear in the messages or the `_args`
-- [ ] Normalize keys into go method naming conventions (`key-one -> KeyOne`)
-- [ ] Generate code
-- [ ] Add localization (`1234.4321` is shown as `1,234.4321` in en-EN but `1.234,4321` in es-ES)
