@@ -1,5 +1,7 @@
 package cli
 
+import "regexp"
+
 type ArgumentType struct {
 	Type          string
 	Aliases       []string
@@ -17,6 +19,12 @@ var KnwonArguments []*ArgumentType = []*ArgumentType{
 		IsAny:         true,
 	},
 	{
+		Type:          "bool",
+		Aliases:       []string{"bool", "boolean"},
+		DefaultFormat: "t",
+		IsValidFormat: func(s string) bool { return s == "t" || s == "v" },
+	},
+	{
 		Type:          "string",
 		Aliases:       []string{"string", "str"},
 		DefaultFormat: "s",
@@ -27,6 +35,12 @@ var KnwonArguments []*ArgumentType = []*ArgumentType{
 		Aliases:       []string{"int", "i"},
 		DefaultFormat: "d",
 		IsValidFormat: func(s string) bool { return s == "d" || s == "v" },
+	},
+	{
+		Type:          "float64",
+		Aliases:       []string{"float64", "f64", "double"},
+		DefaultFormat: "f",
+		IsValidFormat: func(s string) bool { return s == "v" || regexp.MustCompile(`^(\.\d+)?[feEgG]$`).MatchString(s) },
 	},
 }
 

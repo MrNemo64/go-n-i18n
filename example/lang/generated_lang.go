@@ -36,7 +36,7 @@ type Messages interface {
     Cmds() Cmds
     First() string
     In() In
-    MessageWithArgs(str string, num int, b any) string
+    MessageWithArgs(str string, num int, b bool) string
     SeccondMessage() string
 }
 
@@ -57,8 +57,8 @@ type en_EN_Messages struct{}
 func (en_EN_Messages) Cmds() Cmds { return en_EN_Cmds{} }
 func (en_EN_Messages) First() string { return "first" }
 func (en_EN_Messages) In() In { return en_EN_In{} }
-func (en_EN_Messages) MessageWithArgs(str string, num int, b any) string {
-    return fmt.Sprintf("this message embedsa a string '%s', a number %d and a boolean %v", str, num, b)
+func (en_EN_Messages) MessageWithArgs(str string, num int, b bool) string {
+    return fmt.Sprintf("this message embedsa a string '%s', a number %d and a boolean %t", str, num, b)
 }
 func (en_EN_Messages) SeccondMessage() string { return "seccond message" }
 type en_EN_Cmds struct{}
@@ -73,8 +73,8 @@ type es_ES_Messages struct{}
 func (es_ES_Messages) Cmds() Cmds { return es_ES_Cmds{} }
 func (es_ES_Messages) First() string { return "primero" }
 func (es_ES_Messages) In() In { return es_ES_In{} }
-func (es_ES_Messages) MessageWithArgs(str string, num int, b any) string {
-    return fmt.Sprintf("este mensaje tiene  un número %d, un booleano %v y una cadena de texto '%s' pero en otro orden, hasta se repite el número %d", num, b, str, num)
+func (es_ES_Messages) MessageWithArgs(str string, num int, b bool) string {
+    return fmt.Sprintf("este mensaje tiene  un número %d, un booleano %t y una cadena de texto '%s' pero en otro orden, hasta se repite el número %d", num, b, str, num)
 }
 func (es_ES_Messages) SeccondMessage() string { return "segundo mensaje" }
 type es_ES_Cmds struct{}
