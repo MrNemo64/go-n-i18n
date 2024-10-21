@@ -10,14 +10,14 @@ import (
 )
 
 type MessagesParser struct {
-	validKey     *regexp.Regexp
-	hasArguments *regexp.Regexp
+	validKey          *regexp.Regexp
+	argumentExtractor *regexp.Regexp
 }
 
 func ParseJson(walker DirWalker) (*MessageEntryMessageBag, error) {
 	parser := MessagesParser{
-		validKey:     regexp.MustCompile("^[a-zA-Z][a-zA-Z0-9_-]*$"),
-		hasArguments: regexp.MustCompile("{.*?}"),
+		validKey:          regexp.MustCompile("^[a-zA-Z][a-zA-Z0-9_-]*$"),
+		argumentExtractor: regexp.MustCompile(`\{([a-zA-Z_][a-zA-Z0-9_]*)(?::([a-zA-Z0-9_]+))?(?::([a-zA-Z0-9_%.]+))?\}`),
 	}
 	return parser.scanMessagesInDir(walker)
 }
@@ -88,16 +88,26 @@ func (m MessagesParser) parseGroupOfMessages(entries *orderedmap.OrderedMap, des
 				return fmt.Errorf("invalid key '%s' in file %s. The key does not follow the allowed patter", key, file.FullPath())
 			}
 			if innerEntries, ok := value.(orderedmap.OrderedMap); ok {
-				newEntries, err := m.parseNestedEntries(key, &innerEntries, file)
-				if err != nil {
-					return err
-				}
-				if err := dest.AddEntries(newEntries); err != nil {
-					return fmt.Errorf("could not add bag entry: %w", err)
+				if _, isParametrized := innerEntries.Get("_args"); isParametrized {
+					if err := dest.AddEntries(m.parseParametrizedWithSpecifiedArgsString(key, &innerEntries, file.Language())); err != nil {
+						return fmt.Errorf("could not add parametrized entry: %w", err)
+					}
+				} else {
+					newEntries, err := m.parseNestedEntries(key, &innerEntries, file)
+					if err != nil {
+						return err
+					}
+					if err := dest.AddEntries(newEntries); err != nil {
+						return fmt.Errorf("could not add bag entry: %w", err)
+					}
 				}
 			} else if stringValue, ok := value.(string); ok {
-				if m.hasArguments.MatchString(stringValue) {
-					if err := dest.AddEntries(m.parseParametrizedString(key, stringValue, file.Language())); err != nil {
+				if m.argumentExtractor.MatchString(stringValue) {
+					newEntry, err := m.parseParametrizedLiteralString(key, stringValue, file.Language())
+					if err != nil {
+						return err
+					}
+					if err := dest.AddEntries(newEntry); err != nil {
 						return fmt.Errorf("could not add parametrized entry: %w", err)
 					}
 				} else {
@@ -122,7 +132,27 @@ func (MessagesParser) parseLiteralString(key, message, lang string) *MessageEntr
 	}
 }
 
-func (MessagesParser) parseParametrizedString(key, message, lang string) *MessageEntryParametrizedString {
+func (MessagesParser) extractArgs(message string) {
+
+}
+
+func (m MessagesParser) parseParametrizedLiteralString(key, message, lang string) (*MessageEntryParametrizedString, error) {
+	args := m.argumentExtractor.FindAllStringSubmatch(message, -1)
+	p := &MessageEntryParametrizedString{
+		key: key,
+		message: map[string]string{
+			lang: message,
+		},
+	}
+	for _, arg := range args {
+		if err := p.AddArgument(arg[1], arg[2], arg[3]); err != nil {
+			return nil, err
+		}
+	}
+	return p, nil
+}
+
+func (MessagesParser) parseParametrizedWithSpecifiedArgsString(key string, entries *orderedmap.OrderedMap, lang string) *MessageEntryParametrizedString {
 	// TODO
 	panic("not done")
 }

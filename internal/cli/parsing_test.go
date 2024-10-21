@@ -1,6 +1,7 @@
 package cli_test
 
 import (
+	"regexp"
 	"sort"
 	"strings"
 	"testing"
@@ -50,6 +51,8 @@ func TestJsonParser(t *testing.T) {
 
 	t.Run("Parsin fails on duplicated key", parseFailOnDuplicate)
 	t.Run("Parsin fails on parent key is not bag", parseFailParentKeyNotBag)
+
+	t.Run("Parsin parametrized merging works", parseParametrizedMergingWorks)
 }
 
 func parserOnEmptyWalker(t *testing.T) {
@@ -73,6 +76,11 @@ func parserOnOneFileOneLang(t *testing.T) {
 					"key4": "value4",
 					"key5": {
 						"key6": "value6"
+					},
+					"args":  {
+						"any-param": "param {arg} has no type",
+						"typed-param": "param {arg:int} has type int",
+						"formatted-param": "param {arg:str:v} has type string and format %v"
 					}
 				}
 			}
@@ -80,7 +88,7 @@ func parserOnOneFileOneLang(t *testing.T) {
 		},
 	}))
 	require.NoError(t, err)
-	require.Equal(t, bag("", []cli.MessageEntry{
+	expected := bag("", []cli.MessageEntry{
 		literal("key1", "en-EN", "value1"),
 		literal("key2", "en-EN", "value2"),
 		bag("key3", []cli.MessageEntry{
@@ -88,8 +96,14 @@ func parserOnOneFileOneLang(t *testing.T) {
 			bag("key5", []cli.MessageEntry{
 				literal("key6", "en-EN", "value6"),
 			}),
+			bag("args", []cli.MessageEntry{
+				param("any-param", "en-EN", "param {arg} has no type"),
+				param("typed-param", "en-EN", "param {arg:int} has type int"),
+				param("formatted-param", "en-EN", "param {arg:str:v} has type string and format %v"),
+			}),
 		}),
-	}), result)
+	})
+	require.Equal(t, expected, result)
 }
 
 func parserOnSeveralFilesOneLang(t *testing.T) {
@@ -357,6 +371,55 @@ func parseFailParentKeyNotBag(t *testing.T) {
 	require.Error(t, err)
 }
 
+func parseParametrizedMergingWorks(t *testing.T) {
+	t.Parallel()
+
+	result, err := cli.ParseJson(StubWalker([]stubFileEntry{
+		{
+			path:     []string{},
+			language: "en-EN",
+			contents: `{
+				"key1": "{arg}",
+				"key2": "{arg2:int}",
+				"key3": "{arg3:int:v}"
+			}
+			`,
+		},
+		{
+			path:     []string{},
+			language: "es-ES",
+			contents: `{
+				"key1": "{arg:string}",
+				"key2": "{newArg}",
+				"key3": "{arg3}"
+			}
+			`,
+		},
+	}))
+	require.NoError(t, err)
+	expected := bag("", []cli.MessageEntry{
+		param("key1", "en-EN", "{arg}", "es-ES", "{arg:string}"),
+		param("key2", "en-EN", "{arg2:int}", "es-ES", "{newArg}"),
+		param("key3", "en-EN", "{arg3:int:v}", "es-ES", "{arg3}"),
+	})
+	require.Equal(t, expected, result)
+	strType := cli.FindArgumentType("string")
+	intType := cli.FindArgumentType("int")
+	anyType := cli.AnyKind()
+	entry, err := result.AsBag().GetEntry("key1")
+	require.NoError(t, err)
+	require.Equal(t, []*cli.MessageArgument{{Name: "arg", Type: strType, Format: strType.DefaultFormat}}, entry.AsParametrized().Args())
+	entry, err = result.AsBag().GetEntry("key2")
+	require.NoError(t, err)
+	require.Equal(t, []*cli.MessageArgument{
+		{Name: "arg2", Type: intType, Format: intType.DefaultFormat},
+		{Name: "newArg", Type: anyType, Format: anyType.DefaultFormat},
+	}, entry.AsParametrized().Args())
+	entry, err = result.AsBag().GetEntry("key3")
+	require.NoError(t, err)
+	require.Equal(t, []*cli.MessageArgument{{Name: "arg3", Type: intType, Format: "v"}}, entry.AsParametrized().Args())
+}
+
 func bag(key string, entries []cli.MessageEntry) *cli.MessageEntryMessageBag {
 	sort.Slice(entries, func(i, j int) bool {
 		return entries[i].Key() < entries[j].Key()
@@ -377,4 +440,25 @@ func literal(key string, message ...string) *cli.MessageEntryLiteralString {
 		m[message[i-1]] = message[i]
 	}
 	return cli.MessageEntryLiteralString{}.With(key, m)
+}
+
+func param(key string, message ...string) *cli.MessageEntryParametrizedString {
+	re := regexp.MustCompile(`\{([a-zA-Z_][a-zA-Z0-9_]*)(?::([a-zA-Z0-9_]+))?(?::([a-zA-Z0-9_%.]+))?\}`)
+	if len(message)%2 != 0 {
+		panic("")
+	}
+	m := map[string]string{}
+	for i := 1; i < len(message); i += 2 {
+		m[message[i-1]] = message[i]
+	}
+	p := cli.MessageEntryParametrizedString{}.With(key, m)
+	for _, msg := range m {
+		args := re.FindAllStringSubmatch(msg, -1)
+		for _, arg := range args {
+			if err := p.AddArgument(arg[1], arg[2], arg[3]); err != nil {
+				panic(err)
+			}
+		}
+	}
+	return p
 }

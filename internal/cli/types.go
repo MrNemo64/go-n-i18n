@@ -6,7 +6,13 @@ var (
 	ErrEntryNotFoundBecauseParentDoesNotExist       = Error{msg: "could not get entry '%s' because the entry '%s' does not exist"}
 	ErrAddedEntryIsNotTheSameKind                   = Error{msg: "the added entry has kind %d but there is already an entry with kind %d"}
 
-	ErrLiteralMessageRedefinition = Error{msg: `the literal message with key '%s' was already defined as "%s" but it got redefined as "%s"`}
+	ErrLiteralMessageRedefinition       = Error{msg: `the literal message with key '%s' was already defined as "%s" but it got redefined as "%s"`}
+	ErrParametreizedMessageRedefinition = Error{msg: `the parametrized message with key '%s' was already defined as "%s" but it got redefined as "%s"`}
+
+	ErrArgumentNotFound         Error = Error{msg: "argument '%s' not found"}
+	ErrUnknwonArgumentType      Error = Error{msg: "argument type '%s' is not supported"}
+	ErrInvalidArgumentFormat    Error = Error{msg: "argument type '%s' does not support the format '%s'"}
+	ErrArgumentAlreadySpecified Error = Error{msg: "argument '%s' was already specified"}
 )
 
 type MessageEntryKind int

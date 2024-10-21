@@ -127,6 +127,10 @@ func (b *MessageEntryMessageBag) AddEntries(entries ...MessageEntry) error {
 			if err := existing.AsLiteral().Merge(entry.AsLiteral()); err != nil {
 				return err
 			}
+		case MessageEntryParametrized:
+			if err := existing.AsParametrized().Merge(entry.AsParametrized()); err != nil {
+				return err
+			}
 		case MessageEntryBag:
 			existing.AsBag().AddEntries(entry.AsBag().entries...)
 		}
