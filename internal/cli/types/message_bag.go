@@ -42,6 +42,7 @@ func (m *MessageBag) IsRoot() bool               { return m.key == "" }
 func (*MessageBag) Type() MessageEntryType       { return MessageEntryBag }
 func (*MessageBag) IsBag() bool                  { return true }
 func (*MessageBag) IsInstance() bool             { return false }
+func (m *MessageBag) Children() []MessageEntry   { return m.children }
 
 func (b *MessageBag) GetEntry(key string) (MessageEntry, bool) {
 	for _, e := range b.children {
@@ -100,7 +101,7 @@ func (m *MessageBag) AddChildren(children ...MessageEntry) error {
 				return err
 			}
 		case MessageEntryInstance:
-			if err := existing.AsInstance().Merge(existing.AsInstance()); err != nil {
+			if err := existing.AsInstance().Merge(child.AsInstance()); err != nil {
 				return err
 			}
 		default:
@@ -150,30 +151,4 @@ func (m *MessageBag) Languages() *util.Set[string] {
 		set.AddAll(child.Languages())
 	}
 	return set
-}
-
-func (m *MessageBag) DefineInterface(namer MessageEntryNamer) *InterfaceDefinition {
-	def := &InterfaceDefinition{
-		Name: namer.InterfaceName(m),
-	}
-	for _, child := range m.children {
-		switch child.Type() {
-		case MessageEntryBag:
-			inner := child.AsBag().DefineInterface(namer)
-			def.Functions = append(def.Functions, child.AsBag().DefineFunction(namer))
-			def.Interfaces = append(def.Interfaces, inner)
-		case MessageEntryInstance:
-			def.Functions = append(def.Functions, child.AsInstance().DefineFunction(namer))
-		default:
-			panic(fmt.Errorf("unknown entry type %d", child.Type()))
-		}
-	}
-	return def
-}
-
-func (m *MessageBag) DefineFunction(namer MessageEntryNamer) *MessageBagFunctionDefinition {
-	return &MessageBagFunctionDefinition{
-		source: m,
-		name:   namer.FunctionName(m),
-	}
 }

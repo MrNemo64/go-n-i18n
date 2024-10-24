@@ -7,4 +7,5 @@ var (
 )
 
 type MessageValue interface {
+	AsValueString() *ValueString
 }

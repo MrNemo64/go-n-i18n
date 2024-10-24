@@ -37,6 +37,13 @@ func (m *MessageInstance) Message(lang string) (MessageValue, bool) {
 	v, f := m.message[lang]
 	return v, f
 }
+func (m *MessageInstance) MessageMust(lang string) MessageValue {
+	v, f := m.message[lang]
+	if !f {
+		panic(fmt.Errorf("had to had message for lang %s in entry %s but it is not present in %+v", lang, m.PathAsStr(), m.message))
+	}
+	return v
+}
 
 func (m *MessageInstance) AddLanguage(lang string, message MessageValue) error {
 	assert.NonNil(message, "message")
@@ -48,7 +55,12 @@ func (m *MessageInstance) AddLanguage(lang string, message MessageValue) error {
 }
 
 func (m *MessageInstance) Merge(other *MessageInstance) error {
-	panic("todo")
+	for lang, value := range other.message {
+		if err := m.AddLanguage(lang, value); err != nil {
+			return err
+		}
+	}
+	return nil
 }
 
 func (m *MessageInstance) Languages() *util.Set[string] {
@@ -73,11 +85,4 @@ func (m *MessageInstance) MustHaveAllLangs(langs []string, defLang string) map[s
 		}
 	}
 	return missing
-}
-
-func (m *MessageInstance) DefineFunction(namer MessageEntryNamer) *MessageInstanceFunctionDefinition {
-	return &MessageInstanceFunctionDefinition{
-		source: m,
-		name:   namer.FunctionName(m),
-	}
 }
