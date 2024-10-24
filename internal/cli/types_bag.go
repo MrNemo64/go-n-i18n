@@ -1,7 +1,6 @@
 package cli
 
 import (
-	"errors"
 	"sort"
 	"strings"
 )
@@ -26,6 +25,7 @@ func (b *MessageEntryMessageBag) FullPath() []string {
 	}
 	return append(b.parent.FullPath(), b.key)
 }
+func (b *MessageEntryMessageBag) FullPathAsStr() string { return strings.Join(b.FullPath(), ".") }
 func (*MessageEntryMessageBag) AsLiteral() *MessageEntryLiteralString {
 	panic("called AsLiteral in a MessageEntryMessageBag")
 }
@@ -33,13 +33,13 @@ func (*MessageEntryMessageBag) AsParametrized() *MessageEntryParametrizedString 
 	panic("called AsParametrized in a MessageEntryMessageBag")
 }
 
-func (b *MessageEntryMessageBag) GetEntry(key string) (MessageEntry, error) {
+func (b *MessageEntryMessageBag) GetEntry(key string) (MessageEntry, bool) {
 	for _, e := range b.entries {
 		if e.Key() == key {
-			return e, nil
+			return e, true
 		}
 	}
-	return nil, ErrEntryNotFound.WithArgs(key)
+	return nil, false
 }
 
 func (b *MessageEntryMessageBag) FindEntry(path ...string) (MessageEntry, error) {
@@ -47,26 +47,30 @@ func (b *MessageEntryMessageBag) FindEntry(path ...string) (MessageEntry, error)
 		return nil, ErrEntryNotFound.WithArgs("")
 	}
 	if len(path) == 1 {
-		return b.GetEntry(path[0])
+		entry, found := b.GetEntry(path[0])
+		if !found {
+			return nil, ErrEntryNotFound.WithArgs(strings.Join(path, "."))
+		}
+		return entry, nil
 	}
-	entry, err := b.GetEntry(path[0])
-	if err != nil {
-		return nil, err
+	entry, found := b.GetEntry(path[0])
+	if !found {
+		return nil, ErrEntryNotFound.WithArgs(strings.Join(path, "."))
 	}
 	if entry.Kind() != MessageEntryBag {
 		return nil, ErrEntryParentIsNotBag.WithArgs(strings.Join(path, "."), path[0], entry.Kind)
 	}
 	for i := 1; i < len(path)-1; i++ {
-		entry, err = entry.AsBag().GetEntry(path[i])
-		if err != nil {
+		entry, found = entry.AsBag().GetEntry(path[i])
+		if !found {
 			return nil, ErrEntryNotFoundBecauseParentDoesNotExist.WithArgs(strings.Join(path, "."), strings.Join(path[:i+1], "."))
 		}
 		if entry.Kind() != MessageEntryBag {
 			return nil, ErrEntryParentIsNotBag.WithArgs(strings.Join(path, "."), strings.Join(path[:i+1], "."), entry.Kind)
 		}
 	}
-	entry, err = entry.AsBag().GetEntry(path[len(path)-1])
-	if err != nil {
+	entry, found = entry.AsBag().GetEntry(path[len(path)-1])
+	if !found {
 		return nil, ErrEntryNotFound.WithArgs(strings.Join(path, "."))
 	}
 	return entry, nil
@@ -84,10 +88,13 @@ func (b *MessageEntryMessageBag) Languages() *Set[string] {
 }
 
 func (b *MessageEntryMessageBag) FindOrCreateChildBag(path ...string) (*MessageEntryMessageBag, error) {
+	if len(path) == 0 {
+		return b, nil
+	}
 	actual := b
 	for i := 0; i < len(path); i++ {
-		found, err := actual.GetEntry(path[i])
-		if errors.Is(err, ErrEntryNotFound) {
+		found, ok := actual.GetEntry(path[i])
+		if !ok {
 			new := &MessageEntryMessageBag{
 				key:     path[i],
 				entries: make([]MessageEntry, 0),
@@ -96,9 +103,6 @@ func (b *MessageEntryMessageBag) FindOrCreateChildBag(path ...string) (*MessageE
 			actual.entries = append(actual.entries, new)
 			actual = new
 			continue
-		}
-		if err != nil {
-			return nil, err
 		}
 		if found.Kind() != MessageEntryBag {
 			return nil, ErrEntryParentIsNotBag.WithArgs(strings.Join(path, "."), strings.Join(path[:i+1], "."), found.Kind())
@@ -110,8 +114,8 @@ func (b *MessageEntryMessageBag) FindOrCreateChildBag(path ...string) (*MessageE
 
 func (b *MessageEntryMessageBag) AddEntries(entries ...MessageEntry) error {
 	for _, entry := range entries {
-		existing, err := b.GetEntry(entry.Key())
-		if errors.Is(err, ErrEntryNotFound) {
+		existing, found := b.GetEntry(entry.Key())
+		if !found {
 			b.entries = append(b.entries, entry)
 			entry.AssignParent(b)
 			sort.Slice(b.entries, func(i, j int) bool {

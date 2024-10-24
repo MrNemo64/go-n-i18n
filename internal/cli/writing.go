@@ -3,7 +3,6 @@ package cli
 import (
 	"fmt"
 	"os"
-	"regexp"
 	"strings"
 )
 
@@ -148,39 +147,14 @@ func (w *codeWritter) writeMessageFunctions(lang string, structName string, f *M
 }
 
 func (w *codeWritter) writeParametrizedFunctions(lang string, structName string, f *ParametrizedFunctionDefinition) {
+	msg := f.Message.Lang(lang)
 	w.WriteString(fmt.Sprintf("func (%s) %s", structName, f.Name()))
 	w.writeFunctionArgs(f.Args)
 	w.WriteString("string {\n")
 	w.WriteString("    return fmt.Sprintf(\"")
-	msg := f.Message.Message(lang)
-	msg, args := w.extractPartsAndFormats(msg, f.Args)
-	w.WriteString(msg)
+	w.WriteString(msg.String())
 	w.WriteString("\", ")
-	w.WriteString(strings.Join(args, ", "))
+	w.WriteString(strings.Join(Map(msg.Args(), func(t **ArgumentInstance) string { return (*t).Name }), ", "))
 	w.WriteString(")\n")
 	w.WriteString("}\n")
-}
-
-func (*codeWritter) extractPartsAndFormats(msg string, args []*MessageArgument) (string, []string) {
-	// TODO already needed to copy paste this pattern in 2 places
-	// ALSO, the extraction of parts should probably be done on the parsing side not the writing but oh well...
-	argumentExtractor := regexp.MustCompile(`\{([a-zA-Z_][a-zA-Z0-9_]*)(?::([a-zA-Z0-9_]+))?(?::([a-zA-Z0-9_%.]+))?\}`)
-	var argNames []string
-
-	argMap := make(map[string]string)
-	for _, arg := range args {
-		argMap[arg.Name] = "%" + arg.Format
-	}
-
-	formattedMessage := argumentExtractor.ReplaceAllStringFunc(msg, func(match string) string {
-		matches := argumentExtractor.FindStringSubmatch(match)
-		argName := matches[1]
-		argNames = append(argNames, argName)
-		if format, found := argMap[argName]; found {
-			return format
-		}
-		return match
-	})
-
-	return formattedMessage, argNames
 }

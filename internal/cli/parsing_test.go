@@ -57,7 +57,7 @@ func TestJsonParser(t *testing.T) {
 
 func parserOnEmptyWalker(t *testing.T) {
 	t.Parallel()
-	result, err := cli.ParseJson(StubWalker(make([]stubFileEntry, 0)))
+	result, err := cli.ParseJson(StubWalker(make([]stubFileEntry, 0)), cli.NewWarningsCollector())
 	require.NoError(t, err)
 	require.Equal(t, cli.MessageEntryMessageBag{}.With("", make([]cli.MessageEntry, 0)), result)
 }
@@ -86,7 +86,7 @@ func parserOnOneFileOneLang(t *testing.T) {
 			}
 			`,
 		},
-	}))
+	}), cli.NewWarningsCollector())
 	require.NoError(t, err)
 	expected := bag("", []cli.MessageEntry{
 		literal("key1", "en-EN", "value1"),
@@ -130,7 +130,7 @@ func parserOnSeveralFilesOneLang(t *testing.T) {
 			}
 			`,
 		},
-	}))
+	}), cli.NewWarningsCollector())
 	require.NoError(t, err)
 	expected := bag("", []cli.MessageEntry{
 		literal("key1", "en-EN", "value1"),
@@ -188,7 +188,7 @@ func parserOnSeveralFilesCollidingOneLang(t *testing.T) {
 			}
 			`,
 		},
-	}))
+	}), cli.NewWarningsCollector())
 	require.NoError(t, err)
 	expected := bag("", []cli.MessageEntry{
 		literal("key1", "en-EN", "value1"),
@@ -290,7 +290,7 @@ func parserOnSeveralFilesCollidingSeveralLang(t *testing.T) {
 			}
 			`,
 		},
-	}))
+	}), cli.NewWarningsCollector())
 	require.NoError(t, err)
 	expected := bag("", []cli.MessageEntry{
 		literal("key1", "en-EN", "value1", "es-ES", "valor1"),
@@ -335,7 +335,7 @@ func parseFailOnDuplicate(t *testing.T) {
 			}
 			`,
 		},
-	}))
+	}), cli.NewWarningsCollector())
 	require.ErrorIs(t, err, cli.ErrLiteralMessageRedefinition)
 }
 
@@ -367,7 +367,7 @@ func parseFailParentKeyNotBag(t *testing.T) {
 			}
 			`,
 		},
-	}))
+	}), cli.NewWarningsCollector())
 	require.Error(t, err)
 }
 
@@ -395,7 +395,7 @@ func parseParametrizedMergingWorks(t *testing.T) {
 			}
 			`,
 		},
-	}))
+	}), cli.NewWarningsCollector())
 	require.NoError(t, err)
 	expected := bag("", []cli.MessageEntry{
 		param("key1", "en-EN", "{arg}", "es-ES", "{arg:string}"),
@@ -406,17 +406,17 @@ func parseParametrizedMergingWorks(t *testing.T) {
 	strType := cli.FindArgumentType("string")
 	intType := cli.FindArgumentType("int")
 	anyType := cli.AnyKind()
-	entry, err := result.AsBag().GetEntry("key1")
-	require.NoError(t, err)
+	entry, found := result.AsBag().GetEntry("key1")
+	require.True(t, found)
 	require.Equal(t, []*cli.MessageArgument{{Name: "arg", Type: strType, Format: strType.DefaultFormat}}, entry.AsParametrized().Args())
-	entry, err = result.AsBag().GetEntry("key2")
-	require.NoError(t, err)
+	entry, found = result.AsBag().GetEntry("key2")
+	require.True(t, found)
 	require.Equal(t, []*cli.MessageArgument{
 		{Name: "arg2", Type: intType, Format: intType.DefaultFormat},
 		{Name: "newArg", Type: anyType, Format: anyType.DefaultFormat},
 	}, entry.AsParametrized().Args())
-	entry, err = result.AsBag().GetEntry("key3")
-	require.NoError(t, err)
+	entry, found = result.AsBag().GetEntry("key3")
+	require.True(t, found)
 	require.Equal(t, []*cli.MessageArgument{{Name: "arg3", Type: intType, Format: "v"}}, entry.AsParametrized().Args())
 }
 

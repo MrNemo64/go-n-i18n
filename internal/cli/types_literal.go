@@ -5,10 +5,10 @@ import "strings"
 type MessageEntryLiteralString struct {
 	parent  *MessageEntryMessageBag
 	key     string
-	message map[string]string // language tag -> message
+	message map[string]*StringLiteral // language tag -> message
 }
 
-func (MessageEntryLiteralString) With(key string, message map[string]string) *MessageEntryLiteralString {
+func (MessageEntryLiteralString) With(key string, message map[string]*StringLiteral) *MessageEntryLiteralString {
 	return &MessageEntryLiteralString{
 		key:     key,
 		message: message,
@@ -18,15 +18,10 @@ func (*MessageEntryLiteralString) Kind() MessageEntryKind                       
 func (l *MessageEntryLiteralString) Key() string                                 { return l.key }
 func (l *MessageEntryLiteralString) AsLiteral() *MessageEntryLiteralString       { return l }
 func (l *MessageEntryLiteralString) FullPath() []string                          { return append(l.parent.FullPath(), l.key) }
+func (l *MessageEntryLiteralString) FullPathAsStr() string                       { return strings.Join(l.FullPath(), ".") }
 func (l *MessageEntryLiteralString) AssignParent(parent *MessageEntryMessageBag) { l.parent = parent }
-func (l *MessageEntryLiteralString) Message(lang string) string {
+func (l *MessageEntryLiteralString) Message(lang string) *StringLiteral {
 	return l.message[strings.ReplaceAll(lang, "_", "-")]
-}
-func (*MessageEntryLiteralString) AsBag() *MessageEntryMessageBag {
-	panic("called AsBag in a MessageEntryLiteralString")
-}
-func (*MessageEntryLiteralString) AsParametrized() *MessageEntryParametrizedString {
-	panic("called AsParametrized in a MessageEntryMessageBag")
 }
 
 func (l *MessageEntryLiteralString) Merge(other *MessageEntryLiteralString) error {
@@ -60,4 +55,11 @@ func (l *MessageEntryLiteralString) EnsureAllLanguagesPresent(defLang string, la
 
 func (l *MessageEntryLiteralString) DefineFunction(namer MessageEntryNamer) *MessageFunctionDefinition {
 	return &MessageFunctionDefinition{name: namer.FunctionName(l), Message: l}
+}
+
+func (*MessageEntryLiteralString) AsBag() *MessageEntryMessageBag {
+	panic("called AsBag in a MessageEntryLiteralString")
+}
+func (*MessageEntryLiteralString) AsParametrized() *MessageEntryParametrizedString {
+	panic("called AsParametrized in a MessageEntryMessageBag")
 }

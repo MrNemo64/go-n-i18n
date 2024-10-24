@@ -32,6 +32,7 @@ type MessageEntry interface {
 	Languages() *Set[string]
 	EnsureAllLanguagesPresent(defLang string, languages []string) bool
 	FullPath() []string
+	FullPathAsStr() string
 	AssignParent(*MessageEntryMessageBag)
 
 	AsLiteral() *MessageEntryLiteralString

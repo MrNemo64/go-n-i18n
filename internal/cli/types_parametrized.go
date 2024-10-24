@@ -14,11 +14,11 @@ type MessageArgument struct {
 type MessageEntryParametrizedString struct {
 	parent    *MessageEntryMessageBag
 	key       string
-	message   map[string]string // language tag -> message
+	message   map[string]*ParametrizedString // language tag -> message
 	arguments []*MessageArgument
 }
 
-func (MessageEntryParametrizedString) With(key string, message map[string]string) *MessageEntryParametrizedString {
+func (MessageEntryParametrizedString) With(key string, message map[string]*ParametrizedString) *MessageEntryParametrizedString {
 	return &MessageEntryParametrizedString{
 		key:     key,
 		message: message,
@@ -29,12 +29,15 @@ func (*MessageEntryParametrizedString) Kind() MessageEntryKind                  
 func (p *MessageEntryParametrizedString) Key() string                                     { return p.key }
 func (p *MessageEntryParametrizedString) AsParametrized() *MessageEntryParametrizedString { return p }
 func (p *MessageEntryParametrizedString) Args() []*MessageArgument                        { return p.arguments }
-func (p *MessageEntryParametrizedString) Message(lang string) string {
+func (p *MessageEntryParametrizedString) Lang(lang string) *ParametrizedString {
 	return p.message[strings.ReplaceAll(lang, "_", "-")]
 }
 
 func (p *MessageEntryParametrizedString) FullPath() []string {
 	return append(p.parent.FullPath(), p.key)
+}
+func (p *MessageEntryParametrizedString) FullPathAsStr() string {
+	return strings.Join(p.FullPath(), ".")
 }
 
 func (p *MessageEntryParametrizedString) AssignParent(parent *MessageEntryMessageBag) {
