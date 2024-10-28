@@ -2,6 +2,7 @@ package writing
 
 import (
 	"fmt"
+	"slices"
 	"strings"
 
 	"github.com/MrNemo64/go-n-i18n/internal/cli/assert"
@@ -22,6 +23,7 @@ type GoCodeWriter struct {
 
 func GenerateGoCode(msgs *types.MessageBag, namer MessageEntryNamer, langs []string, defLang, pack string) string {
 	assert.Has(langs, defLang)
+	slices.Sort(langs)
 	cw := GoCodeWriter{
 		sb:        &strings.Builder{},
 		msgs:      msgs,
