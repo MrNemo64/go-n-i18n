@@ -169,26 +169,33 @@ func (w *GoCodeWriter) writeFunctionBody(lang string, msg *types.MessageInstance
 	val := msg.MessageMust(lang)
 	switch val.(type) {
 	case *types.ValueString:
-		w.w("return \"%s\"\n", val.AsValueString().Escaped("\""))
+		w.w("return %s\n", w.createValueValueString(val.AsValueString()))
 	case *types.ValueParametrized:
-		p := val.AsValueParametrized()
-		messagePart := strings.Builder{}
-		for i, arg := range p.Args {
-			messagePart.WriteString(p.TextSegments[i].Escaped("\""))
-			messagePart.WriteString("%")
-			if arg.Format == "" {
-				messagePart.WriteString(p.Args[i].Argument.Type.DefaultFormat)
-			} else {
-				messagePart.WriteString(p.Args[i].Format)
-			}
-		}
-		messagePart.WriteString(p.TextSegments[len(p.TextSegments)-1].Escaped("\""))
-		argListPart := strings.Join(
-			util.Map(val.AsValueParametrized().Args, func(_ int, t **types.UsedArgument) string { return (*t).Argument.Name }),
-			", ",
-		)
-		w.w("return fmt.Sprintf(\"%s\", %s)\n", messagePart.String(), argListPart)
+		w.w("return %s\n", w.createValueParametrizedValue(val.AsValueParametrized()))
 	}
+}
+
+func (w *GoCodeWriter) createValueValueString(s *types.ValueString) string {
+	return "\"" + s.AsValueString().Escaped("\"") + "\""
+}
+
+func (w *GoCodeWriter) createValueParametrizedValue(p *types.ValueParametrized) string {
+	messagePart := strings.Builder{}
+	for i, arg := range p.Args {
+		messagePart.WriteString(p.TextSegments[i].Escaped("\""))
+		messagePart.WriteString("%")
+		if arg.Format == "" {
+			messagePart.WriteString(p.Args[i].Argument.Type.DefaultFormat)
+		} else {
+			messagePart.WriteString(p.Args[i].Format)
+		}
+	}
+	messagePart.WriteString(p.TextSegments[len(p.TextSegments)-1].Escaped("\""))
+	argListPart := strings.Join(
+		util.Map(p.Args, func(_ int, t **types.UsedArgument) string { return (*t).Argument.Name }),
+		", ",
+	)
+	return fmt.Sprintf("fmt.Sprintf(\"%s\", %s)", messagePart.String(), argListPart)
 }
 
 func (w *GoCodeWriter) w(str string, args ...any) {
