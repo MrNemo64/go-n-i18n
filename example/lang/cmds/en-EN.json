@@ -1,3 +1,4 @@
 {
-  "seccond_level": "this message is Cmds.SeccondLevel"
+  "seccond_level": "this message is Cmds.SeccondLevel",
+  "multiline": ["multiline", "string", "even with {arg:int}", "and much more!"]
 }

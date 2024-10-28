@@ -59,7 +59,7 @@ func (w *GoCodeWriter) WriteHeader() {
 
 func (w *GoCodeWriter) WriteGetMethods() {
 	w.w("func MessagesFor(tag string) (%s, bool) {\n", w.namer.TopLevelName())
-	w.w("    switch strings.ReplaceAll(tag, \"-\", \"_\") {\n")
+	w.w("    switch strings.ReplaceAll(tag, \"_\", \"-\") {\n")
 	for _, lang := range w.langs {
 		w.w("    case \"%s\":\n", lang)
 		w.w("        return %s{}, true\n", w.namer.InterfaceNameForLang(lang, w.msgs))
@@ -69,7 +69,7 @@ func (w *GoCodeWriter) WriteGetMethods() {
 	w.w("}\n\n")
 
 	w.w("func MessagesForMust(tag string) %s {\n", w.namer.TopLevelName())
-	w.w("    switch strings.ReplaceAll(tag, \"-\", \"_\") {\n")
+	w.w("    switch strings.ReplaceAll(tag, \"_\", \"-\") {\n")
 	for _, lang := range w.langs {
 		w.w("    case \"%s\":\n", lang)
 		w.w("        return %s{}\n", w.namer.InterfaceNameForLang(lang, w.msgs))
@@ -79,7 +79,7 @@ func (w *GoCodeWriter) WriteGetMethods() {
 	w.w("}\n\n")
 
 	w.w("func MessagesForOrDefault(tag string) %s {\n", w.namer.TopLevelName())
-	w.w("    switch strings.ReplaceAll(tag, \"-\", \"_\") {\n")
+	w.w("    switch strings.ReplaceAll(tag, \"_\", \"-\") {\n")
 	for _, lang := range w.langs {
 		w.w("    case \"%s\":\n", lang)
 		w.w("        return %s{}\n", w.namer.InterfaceNameForLang(lang, w.msgs))
@@ -174,6 +174,33 @@ func (w *GoCodeWriter) writeFunctionBody(lang string, msg *types.MessageInstance
 		w.w("return %s\n", w.createValueValueString(val.AsValueString()))
 	case *types.ValueParametrized:
 		w.w("return %s\n", w.createValueParametrizedValue(val.AsValueParametrized()))
+	case *types.ValueMultiline:
+		lines := val.AsMultiline().Lines
+		w.w("return %s", w.createMultilineableString(lines[0]))
+		if len(lines) == 1 {
+			return
+		}
+		w.w(` + "\n" +` + "\n") // writen like this so maybe the compiler joins them
+		w.addIndent()
+		for i := 1; i < len(lines); i++ {
+			w.wl(w.createMultilineableString(lines[i]))
+			if i != len(lines)-1 {
+				w.w(` + "\n" +` + "\n") // writen like this so maybe the compiler joins them
+			}
+		}
+		w.w("\n")
+		w.removeIndent()
+	}
+}
+
+func (w *GoCodeWriter) createMultilineableString(s types.Multilineable) string {
+	switch s.(type) {
+	case *types.ValueString:
+		return w.createValueValueString(s.(*types.ValueString))
+	case *types.ValueParametrized:
+		return w.createValueParametrizedValue(s.(*types.ValueParametrized))
+	default:
+		panic(fmt.Errorf("unknown Multilineable type %+v", s))
 	}
 }
 
@@ -182,22 +209,23 @@ func (w *GoCodeWriter) createValueValueString(s *types.ValueString) string {
 }
 
 func (w *GoCodeWriter) createValueParametrizedValue(p *types.ValueParametrized) string {
-	messagePart := strings.Builder{}
+	messagePartSb := &strings.Builder{}
 	for i, arg := range p.Args {
-		messagePart.WriteString(p.TextSegments[i].Escaped("\""))
-		messagePart.WriteString("%")
+		messagePartSb.WriteString(p.TextSegments[i].Escaped("\""))
+		messagePartSb.WriteString("%")
 		if arg.Format == "" {
-			messagePart.WriteString(p.Args[i].Argument.Type.DefaultFormat)
+			messagePartSb.WriteString(p.Args[i].Argument.Type.DefaultFormat)
 		} else {
-			messagePart.WriteString(p.Args[i].Format)
+			messagePartSb.WriteString(p.Args[i].Format)
 		}
 	}
-	messagePart.WriteString(p.TextSegments[len(p.TextSegments)-1].Escaped("\""))
+	messagePartSb.WriteString(p.TextSegments[len(p.TextSegments)-1].Escaped("\""))
 	argListPart := strings.Join(
 		util.Map(p.Args, func(_ int, t **types.UsedArgument) string { return (*t).Argument.Name }),
 		", ",
 	)
-	return fmt.Sprintf("fmt.Sprintf(\"%s\", %s)", messagePart.String(), argListPart)
+	messagePart := messagePartSb.String()
+	return fmt.Sprintf("fmt.Sprintf(\"%s\", %s)", messagePart, argListPart)
 }
 
 func (w *GoCodeWriter) w(str string, args ...any) {
@@ -207,6 +235,14 @@ func (w *GoCodeWriter) w(str string, args ...any) {
 	msg := fmt.Sprintf(str, args...)
 	w.sb.WriteString(msg)
 	w.inNewLine = strings.HasSuffix(msg, "\n")
+}
+
+func (w *GoCodeWriter) wl(str string) {
+	if w.indent > 0 && w.inNewLine {
+		w.sb.WriteString(strings.Repeat(" ", w.indent))
+	}
+	w.sb.WriteString(str)
+	w.inNewLine = strings.HasSuffix(str, "\n")
 }
 
 func (w *GoCodeWriter) indentBy(amount int) {

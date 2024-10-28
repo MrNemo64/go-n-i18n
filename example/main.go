@@ -7,6 +7,7 @@ import (
 )
 
 func main() {
-	fmt.Println(lang.MessagesForMust("en-EN").In().Depeer())
-	fmt.Println(lang.MessagesForMust("es-ES").In().Depeer())
+	fmt.Println(lang.MessagesForMust("en-EN").Cmds().Multiline(5, "juan"))
+	fmt.Println()
+	fmt.Println(lang.MessagesForMust("es-ES").Cmds().Multiline(5, "juan"))
 }

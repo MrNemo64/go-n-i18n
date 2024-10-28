@@ -9,7 +9,7 @@ import (
 )
 
 func MessagesFor(tag string) (Messages, bool) {
-    switch strings.ReplaceAll(tag, "-", "_") {
+    switch strings.ReplaceAll(tag, "_", "-") {
     case "en-EN":
         return en_EN_Messages{}, true
     case "es-ES":
@@ -18,7 +18,7 @@ func MessagesFor(tag string) (Messages, bool) {
     return nil, false}
 
 func MessagesForMust(tag string) Messages {
-    switch strings.ReplaceAll(tag, "-", "_") {
+    switch strings.ReplaceAll(tag, "_", "-") {
     case "en-EN":
         return en_EN_Messages{}
     case "es-ES":
@@ -27,7 +27,7 @@ func MessagesForMust(tag string) Messages {
     panic(fmt.Errorf("unknwon language tag: " + tag))}
 
 func MessagesForOrDefault(tag string) Messages {
-    switch strings.ReplaceAll(tag, "-", "_") {
+    switch strings.ReplaceAll(tag, "_", "-") {
     case "en-EN":
         return en_EN_Messages{}
     case "es-ES":
@@ -45,6 +45,7 @@ type Messages interface{
 }
 type Cmds interface{
     SeccondLevel() string
+    Multiline(arg int, arg2 string) string
 }
 type In interface{
     Depeer() string
@@ -61,6 +62,12 @@ func (en_EN_Messages) Cmds() Cmds {
 type en_EN_Cmds struct{}
 func (en_EN_Cmds) SeccondLevel() string {
     return "this message is Cmds.SeccondLevel"
+}
+func (en_EN_Cmds) Multiline(arg int, arg2 string) string {
+    return "multiline" + "\n" +
+        "string" + "\n" +
+        fmt.Sprintf("even with %d", arg) + "\n" +
+        "and much more!"
 }
 func (en_EN_Messages) First() string {
     return "first"
@@ -94,6 +101,12 @@ func (es_ES_Messages) Cmds() Cmds {
 type es_ES_Cmds struct{}
 func (es_ES_Cmds) SeccondLevel() string {
     return "este mensaje es Cmds.SeccondLevel"
+}
+func (es_ES_Cmds) Multiline(arg int, arg2 string) string {
+    return fmt.Sprintf("multiline %d", arg) + "\n" +
+        "string" + "\n" +
+        fmt.Sprintf("even with %s", arg2) + "\n" +
+        "and much more!"
 }
 func (es_ES_Messages) First() string {
     return "primero"

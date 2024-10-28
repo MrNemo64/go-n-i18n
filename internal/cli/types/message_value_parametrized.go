@@ -28,7 +28,11 @@ func NewParametrizedStringValue(textSegments []*ValueString, args []*UsedArgumen
 	}, nil
 }
 
+func (*ValueParametrized) multilineMarker() {}
 func (*ValueParametrized) AsValueString() *ValueString {
 	panic("called AsValueString on a ParametrizedString")
+}
+func (*ValueParametrized) AsMultiline() *ValueMultiline {
+	panic("called AsMultiline on a ValueParametrized")
 }
 func (s *ValueParametrized) AsValueParametrized() *ValueParametrized { return s }

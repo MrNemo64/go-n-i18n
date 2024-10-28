@@ -131,18 +131,33 @@ func (p *JsonParser) ParseMessageValue(fullKey string, value any, argList *types
 		return p.ParseParametrizedMessage(fullKey, str, argList)
 	case []any:
 		arr := value.([]any)
-		if !p.IsStringSlice(arr) {
+		if len(arr) == 0 || !p.IsStringSlice(arr) {
 			p.AddWarning(ErrUnknownEntryType.WithArgs(fullKey, value))
 			return nil, false
 		}
-		panic("tofo")
+		lines := make([]types.Multilineable, 0)
+		for _, line := range arr {
+			str := line.(string)
+			if !p.HasArguments(str) {
+				lines = append(lines, types.NewStringLiteralValue(str))
+			} else {
+				if parsed, ok := p.ParseParametrizedMessage(fullKey, str, argList); ok {
+					lines = append(lines, parsed)
+				} else {
+					return nil, false
+				}
+			}
+		}
+		multi, err := types.NewMultilineValue(lines)
+		assert.NoError(err) // err if len(lines) == 0 but we checked above
+		return multi, true
 	default:
 		p.AddWarning(ErrUnknownEntryType.WithArgs(fullKey, value))
 		return nil, false
 	}
 }
 
-func (p *JsonParser) ParseParametrizedMessage(fullKey string, str string, argList *types.ArgumentList) (types.MessageValue, bool) {
+func (p *JsonParser) ParseParametrizedMessage(fullKey string, str string, argList *types.ArgumentList) (*types.ValueParametrized, bool) {
 	textSegments, arguments := p.SeparateArgumentsFromText(str)
 	if len(textSegments) != len(arguments)+1 {
 		panic(fmt.Errorf("JsonParser.SeparateArgumentsFromText returned an unexpected amount of text segments (%d) and arguments (%d) for the path %s", len(textSegments), len(arguments), fullKey))

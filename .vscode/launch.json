@@ -10,7 +10,16 @@
       "request": "launch",
       "mode": "auto",
       "program": "./cmd/i18n/main.go",
-      "args": ["-default-language", "en-EN", "-messages", "${cwd}/example/lang"]
+      "args": [
+        "-default-language",
+        "en-EN",
+        "-messages",
+        "${cwd}/example/lang",
+        "-out-file",
+        "${cwd}/example/lang/generated_lang.go",
+        "-out-package",
+        "lang"
+      ]
     }
   ]
 }
