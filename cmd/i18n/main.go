@@ -20,7 +20,7 @@ func main() {
 		os.Exit(1)
 	}
 
-	cli.Main(cli.CliArgs{
+	cli.Run(cli.CliArgs{
 		MessagesDirectory: *messagesDir,
 		DefaultLanguage:   *defaultLanguage,
 		OutFile:           *outFile,

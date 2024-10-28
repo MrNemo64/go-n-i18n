@@ -11,13 +11,13 @@ The JSON
   "key-5": {
     "key-1": "nested message" // nested message with key `key-5.key-1`
   },
-  "key-6?": {
+  "?key-6": {
     // conditional key->message pair. Here, depending on the value of the argument `messages` one of the 3 options is selected
     "messages==0": "You don't have any messages.",
     "messages==1": "You have one new message.",
     "": "You have {messages:int} new messages." // else branch
   },
-  "key-7?": {
+  "?key-7": {
     // conditional key->message pair. Here, depending on the value of the argument `messages` one of the 3 options is selected. Since we don't use the conditional variable in any message, it can't be infered from these. For these cases, an extra `_args` entry is added
     "_args": ["messages:int"],
     "messages==0": "You don't have any messages.",

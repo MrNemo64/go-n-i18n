@@ -1,7 +1,7 @@
 {
   "first": "first",
   "seccond_message": "seccond message",
-  "message_with_args": "this message embedsa a string '{str:string}', a number {num:int} and a boolean {b:bool}",
+  "message_with_args": "this message embeds a string '{str:string}', a number {num:int}, a boolean {b:bool}, an unknwon type {u} and a formatted float {f:f64:.2g}",
   "in": {
     "depeer": "this message is deeper but not because of dirs",
     "even-deeper": {

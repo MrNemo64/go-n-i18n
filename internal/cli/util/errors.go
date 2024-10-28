@@ -1,4 +1,4 @@
-package cli
+package util
 
 import (
 	"fmt"
@@ -7,6 +7,10 @@ import (
 type Error struct {
 	msg  string
 	args []any
+}
+
+func MakeError(msg string) Error {
+	return Error{msg: msg}
 }
 
 func (err Error) WithArgs(arg ...any) Error {
