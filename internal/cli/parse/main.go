@@ -91,7 +91,7 @@ func (p *JsonParser) ParseGroupOfMessagesInto(dest *types.MessageBag, entries *o
 
 		if inner, ok := value.(orderedmap.OrderedMap); ok { // is bag or parametrized with `_args` to specify args
 			if _, found := inner.Get("_args"); found { // parametrized with `_args``
-
+				panic("todo")
 			} else { // bag
 				newDest, err := dest.FindOrCreateChildBag(key)
 				if err != nil {
