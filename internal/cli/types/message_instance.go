@@ -1,6 +1,7 @@
 package types
 
 import (
+	"errors"
 	"fmt"
 
 	"github.com/MrNemo64/go-n-i18n/internal/cli/assert"
@@ -8,12 +9,14 @@ import (
 )
 
 var (
-	ErrMessageRedefinition util.Error = util.MakeError("the message %s already is defined for %s but it got redefined")
+	ErrMessageRedefinition  util.Error = util.MakeError("the message %s already is defined for %s but it got redefined")
+	ErrMergeMessageInstance            = util.MakeError("could not merge message instances: %w")
 )
 
 type MessageInstance struct {
 	messageEntry
 	message map[string]MessageValue
+	args    *ArgumentList
 }
 
 func NewMessageInstance(key string) (*MessageInstance, error) {
@@ -25,11 +28,13 @@ func NewMessageInstance(key string) (*MessageInstance, error) {
 			key: key,
 		},
 		message: make(map[string]MessageValue),
+		args:    NewArgumentList(),
 	}, nil
 }
 
 func (*MessageInstance) AsBag() *MessageBag             { panic("called AsBag on an instance") }
 func (m *MessageInstance) AsInstance() *MessageInstance { return m }
+func (m *MessageInstance) Args() *ArgumentList          { return m.args }
 func (*MessageInstance) Type() MessageEntryType         { return MessageEntryInstance }
 func (*MessageInstance) IsBag() bool                    { return false }
 func (*MessageInstance) IsInstance() bool               { return true }
@@ -45,6 +50,10 @@ func (m *MessageInstance) MessageMust(lang string) MessageValue {
 	return v
 }
 
+func (m *MessageInstance) AddArgs(args *ArgumentList) error {
+	return m.args.Merge(args)
+}
+
 func (m *MessageInstance) AddLanguage(lang string, message MessageValue) error {
 	assert.NonNil(message, "message")
 	if _, found := m.message[lang]; found {
@@ -55,12 +64,19 @@ func (m *MessageInstance) AddLanguage(lang string, message MessageValue) error {
 }
 
 func (m *MessageInstance) Merge(other *MessageInstance) error {
+	var errs []error
+	if err := m.args.Merge(other.args); err != nil {
+		errs = append(errs, err)
+	}
 	for lang, value := range other.message {
 		if err := m.AddLanguage(lang, value); err != nil {
-			return err
+			errs = append(errs, err)
 		}
 	}
-	return nil
+	if len(errs) == 0 {
+		return nil
+	}
+	return ErrMergeMessageInstance.WithArgs(errors.Join(errs...))
 }
 
 func (m *MessageInstance) Languages() *util.Set[string] {

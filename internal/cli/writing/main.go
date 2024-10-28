@@ -6,6 +6,7 @@ import (
 
 	"github.com/MrNemo64/go-n-i18n/internal/cli/assert"
 	"github.com/MrNemo64/go-n-i18n/internal/cli/types"
+	"github.com/MrNemo64/go-n-i18n/internal/cli/util"
 )
 
 type GoCodeWriter struct {
@@ -95,7 +96,7 @@ func (w *GoCodeWriter) writeInterface(i *types.MessageBag) {
 	w.w("type %s interface{\n", w.namer.InterfaceName(i))
 	w.addIndent()
 	for _, child := range i.Children() {
-		w.w("%s() ", w.namer.FunctionName(child))
+		w.w("%s(%s) ", w.namer.FunctionName(child), w.createArgList(child))
 		switch child.Type() {
 		case types.MessageEntryBag:
 			w.w("%s\n", w.namer.InterfaceName(child.AsBag()))
@@ -133,7 +134,7 @@ func (w *GoCodeWriter) writeStruct(lang string, msgs *types.MessageBag) {
 }
 
 func (w *GoCodeWriter) writeFunction(lang string, msg types.MessageEntry) {
-	w.w("func (%s) %s() ", w.namer.InterfaceNameForLang(lang, msg.Parent()), w.namer.FunctionName(msg))
+	w.w("func (%s) %s(%s) ", w.namer.InterfaceNameForLang(lang, msg.Parent()), w.namer.FunctionName(msg), w.createArgList(msg))
 	switch msg.Type() {
 	case types.MessageEntryBag:
 		w.w("%s {\n", w.namer.InterfaceName(msg.AsBag()))
@@ -150,11 +151,43 @@ func (w *GoCodeWriter) writeFunction(lang string, msg types.MessageEntry) {
 	}
 }
 
+func (w *GoCodeWriter) createArgList(msg types.MessageEntry) string {
+	switch msg.Type() {
+	case types.MessageEntryBag:
+		return ""
+	case types.MessageEntryInstance:
+		return strings.Join(
+			util.Map(msg.AsInstance().Args().Args, func(_ int, t **types.MessageArgument) string { return (*t).Name + " " + (*t).Type.Type }),
+			", ",
+		)
+	default:
+		panic(fmt.Errorf("unknown message entry type %d", msg.Type()))
+	}
+}
+
 func (w *GoCodeWriter) writeFunctionBody(lang string, msg *types.MessageInstance) {
 	val := msg.MessageMust(lang)
 	switch val.(type) {
 	case *types.ValueString:
 		w.w("return \"%s\"\n", val.AsValueString().Escaped("\""))
+	case *types.ValueParametrized:
+		p := val.AsValueParametrized()
+		messagePart := strings.Builder{}
+		for i, arg := range p.Args {
+			messagePart.WriteString(p.TextSegments[i].Escaped("\""))
+			messagePart.WriteString("%")
+			if arg.Format == "" {
+				messagePart.WriteString(p.Args[i].Argument.Type.DefaultFormat)
+			} else {
+				messagePart.WriteString(p.Args[i].Format)
+			}
+		}
+		messagePart.WriteString(p.TextSegments[len(p.TextSegments)-1].Escaped("\""))
+		argListPart := strings.Join(
+			util.Map(val.AsValueParametrized().Args, func(_ int, t **types.UsedArgument) string { return (*t).Argument.Name }),
+			", ",
+		)
+		w.w("return fmt.Sprintf(\"%s\", %s)\n", messagePart.String(), argListPart)
 	}
 }
 

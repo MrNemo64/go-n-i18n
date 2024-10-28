@@ -6,12 +6,21 @@ func copySlice[T any](arr []T, newElement ...T) []T {
 	return append(copied, newElement...)
 }
 
-func Map[T any, R any](v []T, mapper func(*T) R) []R {
+func Map[T any, R any](v []T, mapper func(int, *T) R) []R {
 	r := make([]R, len(v))
 	for i := 0; i < len(v); i++ {
-		r[i] = mapper(&v[i])
+		r[i] = mapper(i, &v[i])
 	}
 	return r
+}
+
+func Has[T comparable](v []T, val T) bool {
+	for i := range v {
+		if val == v[i] {
+			return true
+		}
+	}
+	return false
 }
 
 func MergeIntoA[K comparable, V any](a map[K]V, b map[K]V, merger func(*V, *V) V) bool {

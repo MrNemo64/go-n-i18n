@@ -32,8 +32,10 @@ func Run(args CliArgs) {
 		os.Exit(1)
 	}
 
+	argProvider := types.NewArgumentProvider()
+
 	log.Info("Parsing files")
-	messages, err := parse.ParseJson(walker, wc, log)
+	messages, err := parse.ParseJson(walker, wc, argProvider)
 	if err != nil {
 		log.Error("Could not parse all files in the messages directory", "err", err)
 		os.Exit(1)
@@ -55,7 +57,7 @@ func Run(args CliArgs) {
 	removed := messages.RemoveEntriesWithoutLang(args.DefaultLanguage)
 	if len(removed) > 0 {
 		log.Warn("Removed entries without the default language", "default-language", args.DefaultLanguage,
-			"removed-entries", util.Map(removed, func(t *types.MessageEntry) string { return (*t).PathAsStr() }))
+			"removed-entries", util.Map(removed, func(_ int, t *types.MessageEntry) string { return (*t).PathAsStr() }))
 	}
 
 	filled := messages.MustHaveAllLangs(allLangs.Get(), args.DefaultLanguage)

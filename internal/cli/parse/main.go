@@ -3,7 +3,6 @@ package parse
 import (
 	"encoding/json"
 	"fmt"
-	"log/slog"
 	"regexp"
 	"strings"
 
@@ -14,26 +13,28 @@ import (
 )
 
 var (
-	ErrNextFile         util.Error = util.MakeError("could get next file to parse: %w")
-	ErrIO                          = util.MakeError("could not read contents of file %s: %w")
-	ErrUnmarshal                   = util.MakeError("could not unmarshal contents of file %s: %w")
-	ErrInvalidKeyName              = util.MakeError("invalid key in path %s: %w")
-	ErrUnknownEntryType            = util.MakeError("could not identify the type of entry in the path %s: %+v")
-	ErrAddChildren                 = util.MakeError("could not add child %s to %s: %w")
+	ErrNextFile            util.Error = util.MakeError("could get next file to parse: %w")
+	ErrIO                             = util.MakeError("could not read contents of file %s: %w")
+	ErrUnmarshal                      = util.MakeError("could not unmarshal contents of file %s: %w")
+	ErrInvalidKeyName                 = util.MakeError("invalid key in path %s: %w")
+	ErrUnknownEntryType               = util.MakeError("could not identify the type of entry in the path %s: %+v")
+	ErrAddChildren                    = util.MakeError("could not add child %s to %s: %w")
+	ErrUnknwonArgumentType            = util.MakeError("unknown argument type '%s' in path %s, using the unknown type")
 
 	ErrKeyIsConditionalButValueIsNotObject = util.MakeError("invalid key '%s': has the ? prefix so it's a conditional key but the value is not an object: %v")
 	ErrCouldNotAddEntry                    = util.MakeError("could not add %s entry %s: %w")
 	ErrCouldNotAddArg                      = util.MakeError("could not add argument {%s:%s:%s}: %w")
 )
 
-var ArgumentExtractor = regexp.MustCompile(`\{([a-zA-Z][a-zA-Z0-9_]*)(?::([a-zA-Z0-9_]+))?(?::([a-zA-Z0-9_%.]+))?\}`)
+var ArgumentExtractor = regexp.MustCompile(`\{([a-zA-Z_]\w*):?(\w*)?:?([\w\.]*)?\}`)
 
 type JsonParser struct {
 	*util.WarningsCollector
+	argProvider *types.ArgumentProvider
 }
 
-func ParseJson(walker DirWalker, wc *util.WarningsCollector, log *slog.Logger) (*types.MessageBag, error) {
-	return (&JsonParser{WarningsCollector: wc}).ParseWalker(walker)
+func ParseJson(walker DirWalker, wc *util.WarningsCollector, argProvider *types.ArgumentProvider) (*types.MessageBag, error) {
+	return (&JsonParser{WarningsCollector: wc, argProvider: argProvider}).ParseWalker(walker)
 }
 
 func (p *JsonParser) ParseWalker(walker DirWalker) (*types.MessageBag, error) {
@@ -88,26 +89,31 @@ func (p *JsonParser) ParseGroupOfMessagesInto(dest *types.MessageBag, entries *o
 			continue
 		}
 
-		if inner, ok := value.(orderedmap.OrderedMap); ok { // is bag?
-			newDest, err := dest.FindOrCreateChildBag(key)
-			if err != nil {
-				p.AddWarning(ErrAddChildren.WithArgs(key, dest.PathAsStr(), err))
+		if inner, ok := value.(orderedmap.OrderedMap); ok { // is bag or parametrized with `_args` to specify args
+			if _, found := inner.Get("_args"); found { // parametrized with `_args``
+
+			} else { // bag
+				newDest, err := dest.FindOrCreateChildBag(key)
+				if err != nil {
+					p.AddWarning(ErrAddChildren.WithArgs(key, dest.PathAsStr(), err))
+					continue
+				}
+				if err := p.ParseGroupOfMessagesInto(newDest, &inner, lang); err != nil {
+					return err
+				}
 				continue
 			}
-			if err := p.ParseGroupOfMessagesInto(newDest, &inner, lang); err != nil {
-				return err
-			}
-			continue
 		}
 
-		parsed, ok := p.ParseMessageValue(types.PathAsStr(types.ResolveFullPath(dest, key)), value)
+		args := types.NewArgumentList()
+		parsed, ok := p.ParseMessageValue(types.PathAsStr(types.ResolveFullPath(dest, key)), value, args)
 		if !ok {
 			continue
 		}
 		newEntry, err := types.NewMessageInstance(key)
-		assert.NoError(err) // key is valid, we checked it above
-		err = newEntry.AddLanguage(lang, parsed)
-		assert.NoError(err) // entry is empty, it must accept the new language
+		assert.NoError(err)                                // key is valid, we checked it above
+		assert.NoError(newEntry.AddArgs(args))             // entry is empty, it must accept the new args
+		assert.NoError(newEntry.AddLanguage(lang, parsed)) // entry is empty, it must accept the new language
 		if err := dest.AddChildren(newEntry); err != nil {
 			p.AddWarning(ErrAddChildren.WithArgs(key, dest.PathAsStr(), err))
 		}
@@ -115,15 +121,14 @@ func (p *JsonParser) ParseGroupOfMessagesInto(dest *types.MessageBag, entries *o
 	return nil
 }
 
-func (p *JsonParser) ParseMessageValue(fullKey string, value any) (types.MessageValue, bool) {
+func (p *JsonParser) ParseMessageValue(fullKey string, value any, argList *types.ArgumentList) (types.MessageValue, bool) {
 	switch value.(type) {
 	case string:
 		str := value.(string)
-		if p.HasArguments(str) {
-			panic("tofo")
-		} else {
+		if !p.HasArguments(str) {
 			return types.NewStringLiteralValue(str), true
 		}
+		return p.ParseParametrizedMessage(fullKey, str, argList)
 	case []any:
 		arr := value.([]any)
 		if !p.IsStringSlice(arr) {
@@ -135,6 +140,102 @@ func (p *JsonParser) ParseMessageValue(fullKey string, value any) (types.Message
 		p.AddWarning(ErrUnknownEntryType.WithArgs(fullKey, value))
 		return nil, false
 	}
+}
+
+func (p *JsonParser) ParseParametrizedMessage(fullKey string, str string, argList *types.ArgumentList) (types.MessageValue, bool) {
+	textSegments, arguments := p.SeparateArgumentsFromText(str)
+	if len(textSegments) != len(arguments)+1 {
+		panic(fmt.Errorf("JsonParser.SeparateArgumentsFromText returned an unexpected amount of text segments (%d) and arguments (%d) for the path %s", len(textSegments), len(arguments), fullKey))
+	}
+	usedArgs := util.Map(arguments, func(index int, foundArg *foundArgument) *types.UsedArgument {
+		argType, found := p.argProvider.FindArgument(foundArg.Type)
+		if !found {
+			if foundArg.Type != "" {
+				p.WarningsCollector.AddWarning(ErrUnknwonArgumentType.WithArgs(foundArg.Type, fullKey))
+			}
+			argType = p.argProvider.UnknwonType()
+		}
+		arg, err := argList.AddArgument(&types.MessageArgument{
+			Name: foundArg.Name,
+			Type: argType,
+		})
+		if err != nil {
+			p.WarningsCollector.AddWarning(err)
+			return nil
+		}
+		return &types.UsedArgument{
+			Argument: arg,
+			Format:   foundArg.Format,
+		}
+	})
+	if util.Has(usedArgs, nil) {
+		return nil, false
+	}
+	parametrized, err := types.NewParametrizedStringValue(
+		util.Map(textSegments, func(_ int, t *string) *types.ValueString { return types.NewStringLiteralValue(*t) }),
+		usedArgs,
+	)
+	assert.NoError(err)
+	return parametrized, true
+}
+
+type foundArgument struct {
+	Name   string
+	Type   string
+	Format string
+}
+
+func (p *JsonParser) SeparateArgumentsFromText(message string) ([]string, []foundArgument) {
+	var textSegments []string
+	var arguments []foundArgument
+
+	// Track the position as we move through the string
+	lastIndex := 0
+	matches := ArgumentExtractor.FindAllStringSubmatchIndex(message, -1)
+
+	// If the first match starts at index 0, add an empty text segment at the beginning
+	if len(matches) > 0 && matches[0][0] == 0 {
+		textSegments = append(textSegments, "")
+	}
+
+	for i, match := range matches {
+		start, end := match[0], match[1]
+
+		// Capture the normal text before this argument
+		if start > lastIndex {
+			textSegments = append(textSegments, message[lastIndex:start])
+		} else if i > 0 {
+			// If two arguments are consecutive, insert an empty text segment
+			textSegments = append(textSegments, "")
+		}
+
+		// Extract components based on regex capture groups
+		name := message[match[2]:match[3]]
+		argType := ""
+		format := ""
+		if match[4] != -1 {
+			argType = message[match[4]:match[5]]
+		}
+		if match[6] != -1 {
+			format = message[match[6]:match[7]]
+		}
+
+		// Create an Argument and add to the list
+		arguments = append(arguments, foundArgument{Name: name, Type: argType, Format: format})
+
+		// Update lastIndex to continue after this match
+		lastIndex = end
+	}
+
+	// Append any remaining text after the last argument
+	if lastIndex < len(message) {
+		textSegments = append(textSegments, message[lastIndex:])
+	} else if len(matches) > 0 && lastIndex == len(message) {
+		// If the last match ends at the end of the input, add an empty text segment at the end
+		textSegments = append(textSegments, "")
+	}
+
+	return textSegments, arguments
 }
 
 func (*JsonParser) HasArguments(str string) bool { return ArgumentExtractor.MatchString(str) }
