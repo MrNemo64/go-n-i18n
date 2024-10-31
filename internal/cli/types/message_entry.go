@@ -20,7 +20,7 @@ var (
 
 var ValidKey = regexp.MustCompile("^[a-zA-Z][a-zA-Z0-9_-]*$")
 
-func IsValidKey(key string) bool { return ValidKey.Match([]byte(key)) }
+func IsValidKey(key string) bool { return ValidKey.MatchString(key) }
 func CheckKey(key string) error {
 	if !IsValidKey(key) {
 		return ErrInvalidKey.WithArgs(key)

@@ -50,6 +50,14 @@ type Messages interface{
 type Cmds interface{
     SeccondLevel() string
     Multiline(arg int, arg2 string) string
+    ThisGoesDeeper() RenamedToBeShort
+    ThisGoesDeeperRenamed() ThisGoesDeeperRenamed
+}
+type RenamedToBeShort interface{
+    Key() string
+}
+type ThisGoesDeeperRenamed interface{
+    Key() string
 }
 type In interface{
     Depeer() string
@@ -72,6 +80,20 @@ func (en_EN_Cmds) Multiline(arg int, arg2 string) string {
         "string" + "\n" +
         fmt.Sprintf("even with %d", arg) + "\n" +
         "and much more!"
+}
+func (en_EN_Cmds) ThisGoesDeeper() RenamedToBeShort {
+    return en_EN_RenamedToBeShort{}
+}
+type en_EN_RenamedToBeShort struct{}
+func (en_EN_RenamedToBeShort) Key() string {
+    return "val"
+}
+func (en_EN_Cmds) ThisGoesDeeperRenamed() ThisGoesDeeperRenamed {
+    return en_EN_ThisGoesDeeperRenamed{}
+}
+type en_EN_ThisGoesDeeperRenamed struct{}
+func (en_EN_ThisGoesDeeperRenamed) Key() string {
+    return "val"
 }
 func (en_EN_Messages) First() string {
     return "first"
@@ -134,6 +156,20 @@ func (es_ES_Cmds) Multiline(arg int, arg2 string) string {
         "string" + "\n" +
         fmt.Sprintf("even with %s", arg2) + "\n" +
         "and much more!"
+}
+func (es_ES_Cmds) ThisGoesDeeper() RenamedToBeShort {
+    return es_ES_RenamedToBeShort{}
+}
+type es_ES_RenamedToBeShort struct{}
+func (es_ES_RenamedToBeShort) Key() string {
+    return "val"
+}
+func (es_ES_Cmds) ThisGoesDeeperRenamed() ThisGoesDeeperRenamed {
+    return es_ES_ThisGoesDeeperRenamed{}
+}
+type es_ES_ThisGoesDeeperRenamed struct{}
+func (es_ES_ThisGoesDeeperRenamed) Key() string {
+    return "val"
 }
 func (es_ES_Messages) First() string {
     return "primero"

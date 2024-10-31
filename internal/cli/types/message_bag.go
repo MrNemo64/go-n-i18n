@@ -9,12 +9,22 @@ import (
 type MessageBag struct {
 	messageEntry
 	children []MessageEntry
+	Name     string
 }
 
 var (
 	ErrParentIsNotBag          util.Error = util.MakeError("could not make or get bag entry %s because %s is not a bag")
 	ErrAddedEntryIsNotSameType            = util.MakeError("the entry to add %s is of kind %d but there is already an entry of type %d")
+	ErrInvalidName                        = util.MakeError("the name '%s' does not follow the allowed format (^[a-zA-Z][a-zA-Z0-9_-]*$)")
 )
+
+func IsValidName(name string) bool { return ValidKey.MatchString(name) }
+func CheckName(name string) error {
+	if !IsValidName(name) {
+		return ErrInvalidName.WithArgs(name)
+	}
+	return nil
+}
 
 func NewMessageBag(key string) (*MessageBag, error) {
 	if !IsValidKey(key) {

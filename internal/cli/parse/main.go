@@ -17,6 +17,8 @@ var (
 	ErrIO                                     = util.MakeError("could not read contents of file %s: %w")
 	ErrUnmarshal                              = util.MakeError("could not unmarshal contents of file %s: %w")
 	ErrInvalidKeyName                         = util.MakeError("invalid key in path %s: %w")
+	ErrInvalidBagName                         = util.MakeError("invalid bag name in path %s: %w")
+	ErrBagNameReasignation                    = util.MakeError("the bag %s in the lang %s has the name %s but it got reasigned to %s")
 	ErrUnknownEntryType                       = util.MakeError("could not identify the type of entry in the path %s: %+v")
 	ErrAddChildren                            = util.MakeError("could not add child %s to %s: %w")
 	ErrUnknwonArgumentType                    = util.MakeError("unknown argument type '%s' in path %s, using the unknown type")
@@ -104,18 +106,39 @@ func (p *JsonParser) ParseGroupOfMessagesInto(dest *types.MessageBag, entries *o
 			continue
 		}
 
-		if err := types.CheckKey(key); err != nil {
-			p.AddWarning(ErrInvalidKeyName.WithArgs(types.PathAsStr(types.ResolveFullPath(dest, key)), err))
-			continue
-		}
-
 		if inner, ok := value.(orderedmap.OrderedMap); ok { // is bag or parametrized with `_args` to specify args
 			if _, found := inner.Get("_args"); found { // parametrized with `_args``
 				panic("todo")
 			} else { // bag
+				name := ""
+				if strings.Contains(key, ":") {
+					parts := strings.SplitN(key, ":", 2)
+					if len(parts) == 1 || parts[1] == "" {
+						name = parts[0]
+					} else {
+						name = parts[1]
+					}
+					key = key[:strings.Index(key, ":")]
+				}
+
+				if err := types.CheckKey(key); err != nil {
+					p.AddWarning(ErrInvalidKeyName.WithArgs(types.PathAsStr(types.ResolveFullPath(dest, key)), err))
+					continue
+				}
+
 				newDest, err := dest.FindOrCreateChildBag(key)
 				if err != nil {
 					p.AddWarning(ErrAddChildren.WithArgs(key, dest.PathAsStr(), err))
+					continue
+				}
+				if newDest.Name == "" && name != "" {
+					if err := types.CheckName(name); err != nil {
+						p.AddWarning(ErrInvalidBagName.WithArgs(types.PathAsStr(types.ResolveFullPath(dest, key)), err))
+						continue
+					}
+					newDest.Name = name
+				} else if newDest.Name != name && name != "" {
+					p.WarningsCollector.AddWarning(ErrBagNameReasignation.WithArgs(types.PathAsStr(types.ResolveFullPath(dest, key)), lang, newDest.Name, name))
 					continue
 				}
 				if err := p.ParseGroupOfMessagesInto(newDest, &inner, lang); err != nil {
@@ -123,6 +146,11 @@ func (p *JsonParser) ParseGroupOfMessagesInto(dest *types.MessageBag, entries *o
 				}
 				continue
 			}
+		}
+
+		if err := types.CheckKey(key); err != nil {
+			p.AddWarning(ErrInvalidKeyName.WithArgs(types.PathAsStr(types.ResolveFullPath(dest, key)), err))
+			continue
 		}
 
 		args := types.NewArgumentList()

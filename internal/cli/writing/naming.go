@@ -55,6 +55,9 @@ func (m *goNamer) InterfaceName(me *types.MessageBag) string {
 	if me.Key() == "" {
 		return m.TopLevelName()
 	}
+	if me.Name != "" {
+		return m.toGo(me.Name, false)
+	}
 	name := ""
 	for _, part := range me.Path() {
 		name += m.toGo(part, false)
