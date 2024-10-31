@@ -4,6 +4,7 @@ import (
 	"errors"
 	"os"
 	"path/filepath"
+	"slices"
 	"strings"
 )
 
@@ -37,12 +38,25 @@ type ioDirWalker struct {
 	current int
 }
 
-func IoDirWalker(dir string) (*ioDirWalker, error) {
+func IoDirWalker(dir string, defLang string) (*ioDirWalker, error) {
 	walker := &ioDirWalker{Origin: dir, current: -1}
 	err := walker.loadFiles()
 	if err != nil {
 		return nil, err
 	}
+	slices.SortFunc(walker.files, func(i, j IOFileEntry) int {
+		if i.language == defLang {
+			if j.language == defLang {
+				return 0
+			}
+			return -1
+		} else {
+			if j.language == defLang {
+				return 0
+			}
+			return 1
+		}
+	})
 	return walker, nil
 }
 

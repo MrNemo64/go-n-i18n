@@ -28,7 +28,7 @@ func Run(args CliArgs) {
 	wc := util.NewWarningsCollector()
 
 	log.Info("Collecting files")
-	walker, err := parse.IoDirWalker(args.MessagesDirectory)
+	walker, err := parse.IoDirWalker(args.MessagesDirectory, args.DefaultLanguage)
 	if err != nil {
 		log.Error("Could not collect all files in the messages directory", "err", err)
 		os.Exit(1)
