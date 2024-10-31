@@ -65,7 +65,7 @@ func (w *GoCodeWriter) WriteGetMethods() {
 		w.w("        return %s{}, true\n", w.namer.InterfaceNameForLang(lang, w.msgs))
 	}
 	w.w("    }\n")
-	w.w("    return nil, false")
+	w.w("    return nil, false\n")
 	w.w("}\n\n")
 
 	w.w("func MessagesForMust(tag string) %s {\n", w.namer.TopLevelName())
@@ -75,7 +75,7 @@ func (w *GoCodeWriter) WriteGetMethods() {
 		w.w("        return %s{}\n", w.namer.InterfaceNameForLang(lang, w.msgs))
 	}
 	w.w("    }\n")
-	w.w("    panic(fmt.Errorf(\"unknwon language tag: \" + tag))")
+	w.w("    panic(fmt.Errorf(\"unknwon language tag: \" + tag))\n")
 	w.w("}\n\n")
 
 	w.w("func MessagesForOrDefault(tag string) %s {\n", w.namer.TopLevelName())
@@ -169,6 +169,10 @@ func (w *GoCodeWriter) createArgList(msg types.MessageEntry) string {
 
 func (w *GoCodeWriter) writeFunctionBody(lang string, msg *types.MessageInstance) {
 	val := msg.MessageMust(lang)
+	w.writeValue(val)
+}
+
+func (w *GoCodeWriter) writeValue(val types.MessageValue) {
 	switch val.(type) {
 	case *types.ValueString:
 		w.w("return %s\n", w.createValueValueString(val.AsValueString()))
@@ -190,6 +194,42 @@ func (w *GoCodeWriter) writeFunctionBody(lang string, msg *types.MessageInstance
 		}
 		w.w("\n")
 		w.removeIndent()
+	case *types.ValueConditional:
+		conditions := val.AsConditional()
+		w.w("if %s {\n", conditions.Conditions[0].Condition)
+		w.addIndent()
+		mval, ok := conditions.Conditions[0].Value.(types.MessageValue)
+		if !ok {
+			panic("") // TODO
+		}
+		w.writeValue(mval)
+		w.removeIndent()
+		w.w("}")
+		for i := 1; i < len(conditions.Conditions); i++ {
+			condition := conditions.Conditions[i]
+			w.w(" else if %s {\n", condition.Condition)
+			w.addIndent()
+			mval, ok := conditions.Conditions[i].Value.(types.MessageValue)
+			if !ok {
+				panic("") // TODO
+			}
+			w.writeValue(mval)
+			w.removeIndent()
+			w.w("}")
+		}
+		w.w(" else {\n")
+		w.addIndent()
+		if conditions.Else == nil {
+			w.wl(`panic(fmt.Errorf("no condition was true in conditional"))` + "\n")
+		} else {
+			mval, ok := conditions.Else.(types.MessageValue)
+			if !ok {
+				panic("") // TODO
+			}
+			w.writeValue(mval)
+		}
+		w.removeIndent()
+		w.w("}\n")
 	}
 }
 

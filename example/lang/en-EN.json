@@ -7,5 +7,19 @@
     "even-deeper": {
       "msg": "r/im14andthisisdeep"
     }
+  },
+  "?conditional-with-else": {
+    "messages == 0": "No new messages",
+    "messages == 1": "One new message",
+    "": "You have {messages:int} new messages"
+  },
+  "?conditional-without-else": {
+    "messages == 0": "No new messages",
+    "messages == 1": "One new message",
+    "messages > 1000": [
+      "{user:str}, you seem to be popular!",
+      "You have {messages:int} new messages :o"
+    ],
+    "messages > 1": "You have {messages:int} new messages"
   }
 }

@@ -13,13 +13,16 @@ import (
 )
 
 var (
-	ErrNextFile            util.Error = util.MakeError("could get next file to parse: %w")
-	ErrIO                             = util.MakeError("could not read contents of file %s: %w")
-	ErrUnmarshal                      = util.MakeError("could not unmarshal contents of file %s: %w")
-	ErrInvalidKeyName                 = util.MakeError("invalid key in path %s: %w")
-	ErrUnknownEntryType               = util.MakeError("could not identify the type of entry in the path %s: %+v")
-	ErrAddChildren                    = util.MakeError("could not add child %s to %s: %w")
-	ErrUnknwonArgumentType            = util.MakeError("unknown argument type '%s' in path %s, using the unknown type")
+	ErrNextFile                    util.Error = util.MakeError("could get next file to parse: %w")
+	ErrIO                                     = util.MakeError("could not read contents of file %s: %w")
+	ErrUnmarshal                              = util.MakeError("could not unmarshal contents of file %s: %w")
+	ErrInvalidKeyName                         = util.MakeError("invalid key in path %s: %w")
+	ErrUnknownEntryType                       = util.MakeError("could not identify the type of entry in the path %s: %+v")
+	ErrAddChildren                            = util.MakeError("could not add child %s to %s: %w")
+	ErrUnknwonArgumentType                    = util.MakeError("unknown argument type '%s' in path %s, using the unknown type")
+	ErrInvalidConditionalEntry                = util.MakeError("the entry %s in the lang %s is marked as conditional but no conditions are provided")
+	ErrInvalidConditionalCondition            = util.MakeError("the condition %s in the path %s in the lang %s is not a valid conditional value")
+	ErrInvalidConditional                     = util.MakeError("the conditional in the path %s in the lang %s is not a valid: %w")
 
 	ErrKeyIsConditionalButValueIsNotObject = util.MakeError("invalid key '%s': has the ? prefix so it's a conditional key but the value is not an object: %v")
 	ErrCouldNotAddEntry                    = util.MakeError("could not add %s entry %s: %w")
@@ -81,7 +84,24 @@ func (p *JsonParser) ParseGroupOfMessagesInto(dest *types.MessageBag, entries *o
 				p.AddWarning(ErrInvalidKeyName.WithArgs(types.PathAsStr(types.ResolveFullPath(dest, key)), err))
 				continue
 			}
-			panic("todo: parsing conditionals")
+			mapValue, ok := value.(orderedmap.OrderedMap)
+			if !ok {
+				p.WarningsCollector.AddWarning(ErrInvalidConditionalEntry.WithArgs(types.PathAsStr(types.ResolveFullPath(dest, key)), lang))
+				continue
+			}
+			args := types.NewArgumentList()
+			parsed, ok := p.ParseConditionalMessageValue(types.PathAsStr(types.ResolveFullPath(dest, key)), &mapValue, args, lang)
+			if !ok {
+				continue
+			}
+			newEntry, err := types.NewMessageInstance(key)
+			assert.NoError(err)                                // key is valid, we checked it above
+			assert.NoError(newEntry.AddArgs(args))             // entry is empty, it must accept the new args
+			assert.NoError(newEntry.AddLanguage(lang, parsed)) // entry is empty, it must accept the new language
+			if err := dest.AddChildren(newEntry); err != nil {
+				p.AddWarning(ErrAddChildren.WithArgs(key, dest.PathAsStr(), err))
+			}
+			continue
 		}
 
 		if err := types.CheckKey(key); err != nil {
@@ -155,6 +175,49 @@ func (p *JsonParser) ParseMessageValue(fullKey string, value any, argList *types
 		p.AddWarning(ErrUnknownEntryType.WithArgs(fullKey, value))
 		return nil, false
 	}
+}
+
+func (p *JsonParser) ParseConditionalMessageValue(fullKey string, value *orderedmap.OrderedMap, argList *types.ArgumentList, lang string) (*types.ValueConditional, bool) {
+	finishOk := true
+	var conditions []types.Condition
+	var elseCondition types.Conditionable
+	for _, condition := range value.Keys() {
+		if condition == "_args" {
+			panic(fmt.Errorf("specifying the args in a `_args` entry is not yet supported"))
+		}
+		value, found := value.Get(condition)
+		if !found {
+			panic(fmt.Errorf("the ordered map is missing the key '%s', this is a bug in the github.com/iancoleman/orderedmap library. Dest: %s", condition, fullKey))
+		}
+		parsed, ok := p.ParseMessageValue(fullKey+"."+condition, value, argList)
+		if !ok {
+			finishOk = false
+			continue
+		}
+		conditionValue, ok := parsed.(types.Conditionable)
+		if !ok {
+			finishOk = false
+			p.AddWarning(ErrInvalidConditionalCondition.WithArgs(condition, fullKey, lang))
+			continue
+		}
+		if condition == "" {
+			elseCondition = conditionValue
+		} else {
+			conditions = append(conditions, types.Condition{
+				Condition: condition,
+				Value:     conditionValue,
+			})
+		}
+	}
+	if !finishOk {
+		return nil, false
+	}
+	cond, err := types.NewConditionalValue(conditions, elseCondition)
+	if err != nil {
+		p.WarningsCollector.AddWarning(ErrInvalidConditional.WithArgs(fullKey, lang, err))
+		return nil, false
+	}
+	return cond, true
 }
 
 func (p *JsonParser) ParseParametrizedMessage(fullKey string, str string, argList *types.ArgumentList) (*types.ValueParametrized, bool) {

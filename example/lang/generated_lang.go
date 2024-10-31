@@ -15,7 +15,8 @@ func MessagesFor(tag string) (Messages, bool) {
     case "es-ES":
         return es_ES_Messages{}, true
     }
-    return nil, false}
+    return nil, false
+}
 
 func MessagesForMust(tag string) Messages {
     switch strings.ReplaceAll(tag, "_", "-") {
@@ -24,7 +25,8 @@ func MessagesForMust(tag string) Messages {
     case "es-ES":
         return es_ES_Messages{}
     }
-    panic(fmt.Errorf("unknwon language tag: " + tag))}
+    panic(fmt.Errorf("unknwon language tag: " + tag))
+}
 
 func MessagesForOrDefault(tag string) Messages {
     switch strings.ReplaceAll(tag, "_", "-") {
@@ -42,6 +44,8 @@ type Messages interface{
     SeccondMessage() string
     MessageWithArgs(str string, num int, b bool, u any, f float64) string
     In() In
+    ConditionalWithElse(messages int) string
+    ConditionalWithoutElse(user string, messages int) string
 }
 type Cmds interface{
     SeccondLevel() string
@@ -92,6 +96,29 @@ type en_EN_InEvenDeeper struct{}
 func (en_EN_InEvenDeeper) Msg() string {
     return "r/im14andthisisdeep"
 }
+func (en_EN_Messages) ConditionalWithElse(messages int) string {
+    if messages == 0 {
+        return "No new messages"
+    } else if messages == 1 {
+        return "One new message"
+    } else {
+        return fmt.Sprintf("You have %d new messages", messages)
+    }
+}
+func (en_EN_Messages) ConditionalWithoutElse(user string, messages int) string {
+    if messages == 0 {
+        return "No new messages"
+    } else if messages == 1 {
+        return "One new message"
+    } else if messages > 1000 {
+        return fmt.Sprintf("%s, you seem to be popular!", user) + "\n" +
+            fmt.Sprintf("You have %d new messages :o", messages)
+    } else if messages > 1 {
+        return fmt.Sprintf("You have %d new messages", messages)
+    } else {
+        panic(fmt.Errorf("no condition was true in conditional"))
+    }
+}
 
 
 type es_ES_Messages struct{}
@@ -130,6 +157,29 @@ func (es_ES_In) EvenDeeper() InEvenDeeper {
 type es_ES_InEvenDeeper struct{}
 func (es_ES_InEvenDeeper) Msg() string {
     return "r/im14andthisisdeep"
+}
+func (es_ES_Messages) ConditionalWithElse(messages int) string {
+    if messages == 0 {
+        return "No new messages"
+    } else if messages == 1 {
+        return "One new message"
+    } else {
+        return fmt.Sprintf("You have %d new messages", messages)
+    }
+}
+func (es_ES_Messages) ConditionalWithoutElse(user string, messages int) string {
+    if messages == 0 {
+        return "No new messages"
+    } else if messages == 1 {
+        return "One new message"
+    } else if messages > 1000 {
+        return fmt.Sprintf("%s, you seem to be popular!", user) + "\n" +
+            fmt.Sprintf("You have %d new messages :o", messages)
+    } else if messages > 1 {
+        return fmt.Sprintf("You have %d new messages", messages)
+    } else {
+        panic(fmt.Errorf("no condition was true in conditional"))
+    }
 }
 
 

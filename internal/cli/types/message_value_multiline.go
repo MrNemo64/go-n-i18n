@@ -21,12 +21,14 @@ func NewMultilineValue(lines []Multilineable) (*ValueMultiline, error) {
 	return &ValueMultiline{Lines: lines}, nil
 }
 
+func (*ValueMultiline) conditionableMarker()           {}
+func (s *ValueMultiline) AsMultiline() *ValueMultiline { return s }
 func (*ValueMultiline) AsValueString() *ValueString {
 	panic("called AsValueString on a ValueMultiline")
 }
 func (*ValueMultiline) AsValueParametrized() *ValueParametrized {
 	panic("called AsValueParametrized on a ValueMultiline")
 }
-func (s *ValueMultiline) AsMultiline() *ValueMultiline {
-	return s
+func (*ValueMultiline) AsConditional() *ValueConditional {
+	panic("called AsConditional on a ValueMultiline")
 }
