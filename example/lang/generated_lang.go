@@ -39,15 +39,15 @@ func MessagesForOrDefault(tag string) Messages {
 }
 
 type Messages interface{
-    Cmds() Cmds
+    Cmds() cmds
     First() string
     SeccondMessage() string
     MessageWithArgs(str string, num int, b bool, u any, f float64) string
-    In() In
+    In() in
     ConditionalWithElse(messages int) string
     ConditionalWithoutElse(user string, messages int) string
 }
-type Cmds interface{
+type cmds interface{
     SeccondLevel() string
     Multiline(arg int, arg2 string) string
     ThisGoesDeeper() RenamedToBeShort
@@ -59,36 +59,36 @@ type RenamedToBeShort interface{
 type ThisGoesDeeperRenamed interface{
     Key() string
 }
-type In interface{
+type in interface{
     Depeer() string
-    EvenDeeper() InEvenDeeper
+    EvenDeeper() inevenDeeper
 }
-type InEvenDeeper interface{
+type inevenDeeper interface{
     Msg() string
 }
 
 type en_EN_Messages struct{}
-func (en_EN_Messages) Cmds() Cmds {
-    return en_EN_Cmds{}
+func (en_EN_Messages) Cmds() cmds {
+    return en_EN_cmds{}
 }
-type en_EN_Cmds struct{}
-func (en_EN_Cmds) SeccondLevel() string {
+type en_EN_cmds struct{}
+func (en_EN_cmds) SeccondLevel() string {
     return "this message is Cmds.SeccondLevel"
 }
-func (en_EN_Cmds) Multiline(arg int, arg2 string) string {
+func (en_EN_cmds) Multiline(arg int, arg2 string) string {
     return "multiline" + "\n" +
         "string" + "\n" +
         fmt.Sprintf("even with %d", arg) + "\n" +
         "and much more!"
 }
-func (en_EN_Cmds) ThisGoesDeeper() RenamedToBeShort {
+func (en_EN_cmds) ThisGoesDeeper() RenamedToBeShort {
     return en_EN_RenamedToBeShort{}
 }
 type en_EN_RenamedToBeShort struct{}
 func (en_EN_RenamedToBeShort) Key() string {
     return "val"
 }
-func (en_EN_Cmds) ThisGoesDeeperRenamed() ThisGoesDeeperRenamed {
+func (en_EN_cmds) ThisGoesDeeperRenamed() ThisGoesDeeperRenamed {
     return en_EN_ThisGoesDeeperRenamed{}
 }
 type en_EN_ThisGoesDeeperRenamed struct{}
@@ -104,18 +104,18 @@ func (en_EN_Messages) SeccondMessage() string {
 func (en_EN_Messages) MessageWithArgs(str string, num int, b bool, u any, f float64) string {
     return fmt.Sprintf("this message embeds a string '%s', a number %d, a boolean %t, an unknwon type %v and a formatted float %.2g", str, num, b, u, f)
 }
-func (en_EN_Messages) In() In {
-    return en_EN_In{}
+func (en_EN_Messages) In() in {
+    return en_EN_in{}
 }
-type en_EN_In struct{}
-func (en_EN_In) Depeer() string {
+type en_EN_in struct{}
+func (en_EN_in) Depeer() string {
     return "this message is deeper but not because of dirs"
 }
-func (en_EN_In) EvenDeeper() InEvenDeeper {
-    return en_EN_InEvenDeeper{}
+func (en_EN_in) EvenDeeper() inevenDeeper {
+    return en_EN_inevenDeeper{}
 }
-type en_EN_InEvenDeeper struct{}
-func (en_EN_InEvenDeeper) Msg() string {
+type en_EN_inevenDeeper struct{}
+func (en_EN_inevenDeeper) Msg() string {
     return "r/im14andthisisdeep"
 }
 func (en_EN_Messages) ConditionalWithElse(messages int) string {
@@ -144,27 +144,27 @@ func (en_EN_Messages) ConditionalWithoutElse(user string, messages int) string {
 
 
 type es_ES_Messages struct{}
-func (es_ES_Messages) Cmds() Cmds {
-    return es_ES_Cmds{}
+func (es_ES_Messages) Cmds() cmds {
+    return es_ES_cmds{}
 }
-type es_ES_Cmds struct{}
-func (es_ES_Cmds) SeccondLevel() string {
+type es_ES_cmds struct{}
+func (es_ES_cmds) SeccondLevel() string {
     return "este mensaje es Cmds.SeccondLevel"
 }
-func (es_ES_Cmds) Multiline(arg int, arg2 string) string {
+func (es_ES_cmds) Multiline(arg int, arg2 string) string {
     return fmt.Sprintf("multiline %d", arg) + "\n" +
         "string" + "\n" +
         fmt.Sprintf("even with %s", arg2) + "\n" +
         "and much more!"
 }
-func (es_ES_Cmds) ThisGoesDeeper() RenamedToBeShort {
+func (es_ES_cmds) ThisGoesDeeper() RenamedToBeShort {
     return es_ES_RenamedToBeShort{}
 }
 type es_ES_RenamedToBeShort struct{}
 func (es_ES_RenamedToBeShort) Key() string {
     return "val"
 }
-func (es_ES_Cmds) ThisGoesDeeperRenamed() ThisGoesDeeperRenamed {
+func (es_ES_cmds) ThisGoesDeeperRenamed() ThisGoesDeeperRenamed {
     return es_ES_ThisGoesDeeperRenamed{}
 }
 type es_ES_ThisGoesDeeperRenamed struct{}
@@ -180,18 +180,18 @@ func (es_ES_Messages) SeccondMessage() string {
 func (es_ES_Messages) MessageWithArgs(str string, num int, b bool, u any, f float64) string {
     return fmt.Sprintf("este mensaje tiene  un número %v, un booleano %v y una cadena de texto '%v' pero en otro orden, hasta se repite el número %v", num, b, str, num)
 }
-func (es_ES_Messages) In() In {
-    return es_ES_In{}
+func (es_ES_Messages) In() in {
+    return es_ES_in{}
 }
-type es_ES_In struct{}
-func (es_ES_In) Depeer() string {
+type es_ES_in struct{}
+func (es_ES_in) Depeer() string {
     return "este mensaje está más a dentro pero no por las carpetas"
 }
-func (es_ES_In) EvenDeeper() InEvenDeeper {
-    return es_ES_InEvenDeeper{}
+func (es_ES_in) EvenDeeper() inevenDeeper {
+    return es_ES_inevenDeeper{}
 }
-type es_ES_InEvenDeeper struct{}
-func (es_ES_InEvenDeeper) Msg() string {
+type es_ES_inevenDeeper struct{}
+func (es_ES_inevenDeeper) Msg() string {
     return "r/im14andthisisdeep"
 }
 func (es_ES_Messages) ConditionalWithElse(messages int) string {

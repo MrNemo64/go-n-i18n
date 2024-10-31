@@ -14,15 +14,21 @@ type MessageEntryNamer interface {
 	TopLevelName() string
 }
 
-type goNamer struct{}
-
-func GoNamer() *goNamer {
-	return &goNamer{}
+type goNamer struct {
+	publicNonNamedInterfaces bool
+	topLevelName             string
 }
 
-func (*goNamer) toGo(key string, private bool) string {
+func GoNamer(topLevelName string, publicNonNamedInterfaces bool) *goNamer {
+	return &goNamer{
+		topLevelName:             topLevelName,
+		publicNonNamedInterfaces: publicNonNamedInterfaces,
+	}
+}
+
+func (*goNamer) toGo(key string, public bool) string {
 	newName := key[:1]
-	if !private {
+	if public {
 		newName = strings.ToUpper(key[:1])
 	}
 
@@ -44,7 +50,7 @@ func (m *goNamer) FunctionName(me types.MessageEntry) string {
 	if me.Key() == "" {
 		panic("tryed to get the function name of the root bag")
 	}
-	return m.toGo(me.Key(), false)
+	return m.toGo(me.Key(), true)
 }
 
 func (m goNamer) FunctionNameForLang(lang string, me types.MessageEntry) string {
@@ -56,11 +62,11 @@ func (m *goNamer) InterfaceName(me *types.MessageBag) string {
 		return m.TopLevelName()
 	}
 	if me.Name != "" {
-		return m.toGo(me.Name, false)
+		return m.toGo(me.Name, true)
 	}
 	name := ""
 	for _, part := range me.Path() {
-		name += m.toGo(part, false)
+		name += m.toGo(part, m.publicNonNamedInterfaces)
 	}
 	return name
 }
@@ -70,5 +76,5 @@ func (m *goNamer) InterfaceNameForLang(lang string, me *types.MessageBag) string
 }
 
 func (m *goNamer) TopLevelName() string {
-	return "Messages"
+	return m.toGo(m.topLevelName, true)
 }

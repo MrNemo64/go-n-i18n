@@ -11,11 +11,13 @@ import (
 )
 
 type CliArgs struct {
-	MessagesDirectory string
-	DefaultLanguage   string
-	OutFile           string
-	Package           string
-	LogLevel          slog.Level
+	MessagesDirectory        string
+	DefaultLanguage          string
+	OutFile                  string
+	Package                  string
+	TopLevelInterfaceName    string
+	PublicNonNamedInterfaces bool
+	LogLevel                 slog.Level
 }
 
 func Run(args CliArgs) {
@@ -66,7 +68,7 @@ func Run(args CliArgs) {
 	}
 
 	log.Info("Generating code")
-	code := writing.GenerateGoCode(messages, writing.GoNamer(), allLangs.Get(), args.DefaultLanguage, args.Package)
+	code := writing.GenerateGoCode(messages, writing.GoNamer(args.TopLevelInterfaceName, args.PublicNonNamedInterfaces), allLangs.Get(), args.DefaultLanguage, args.Package)
 
 	file, err := os.Create(args.OutFile)
 	if err != nil {
