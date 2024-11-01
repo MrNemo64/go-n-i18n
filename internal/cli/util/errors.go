@@ -20,7 +20,7 @@ func (err Error) WithArgs(arg ...any) Error {
 }
 
 func (err Error) Error() string {
-	return fmt.Sprintf(err.msg, err.args...)
+	return fmt.Errorf(err.msg, err.args...).Error()
 }
 
 func (err Error) Is(other error) bool {

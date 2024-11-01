@@ -1,94 +1,109 @@
-# Ideal format to implement
+# go-n-i18n
 
-The JSON
+A code generation tool writen in go and inspired by [ParaglideJS](https://inlang.com/m/gerre34r/library-inlang-paraglideJs)
+for type safe and feature rich internationalization.
 
-```json
+## How it works
+
+Messages are defined in a JSON file,
+go-n-i18n will extract the messages from these files and generate code with it.
+Here is an example:
+
+```JSON
 {
-  "key-1": "message", // simple key->message
-  "key-2": "message with {arg}", // key->message but with an `any` argument called `arg`,
-  "key-3": "message with {arg:int} used twice {arg}", // key->message but with an `int` argument called `arg`, only need to specify the type ones
-  "key-4": "message with {arg1:int} and {arg2:float64:.2f}", // key->message but with an `int` argument called `arg1` and a `float64` argument called `arg2` using the format `.2f`
-  "key-5": {
-    "key-1": "nested message" // nested message with key `key-5.key-1`
+  "where-am-i": "Assume this json is in the file \"en-EN.json\"",
+  "nested-messages": {
+    "simple": "This is just a simple message nested into \"nested-messages\"",
+    "parametrized": "This message has an amount parameter of type int: {amount:int}"
   },
-  "?key-6": {
-    // conditional key->message pair. Here, depending on the value of the argument `messages` one of the 3 options is selected
-    "messages==0": "You don't have any messages.",
-    "messages==1": "You have one new message.",
-    "": "You have {messages:int} new messages." // else branch
-  },
-  "?key-7": {
-    // conditional key->message pair. Here, depending on the value of the argument `messages` one of the 3 options is selected. Since we don't use the conditional variable in any message, it can't be infered from these. For these cases, an extra `_args` entry is added
-    "_args": ["messages:int"],
-    "messages==0": "You don't have any messages.",
-    "messages==1": "You have one new message.",
-    "": "You have several new messages." // else branch
+  "multiline-message": [
+    "Hello {user:str}!",
+    "Messages can be multiline",
+    "And each one can have parameters",
+    "This one has a float formated with 2 decimals! {amount:float64:.2f}"
+  ],
+  "?conditional-messages": {
+    "amount == 0": "If amount is 0, this message is used",
+    "amount == 1": "This message is returned if the amount is 1",
+    "": [
+      "This is the \"else\" branch",
+      "This multiline message is used",
+      "And shows the amount: {amount:int}"
+    ]
   }
 }
 ```
 
-Should produce the output
+When running go-n-i18n, you'll get code that looks like this:
 
 ```go
-func MessagesFor(tag string) (Messages, error) {
-    if tag == "en-EN" {
-        return en_EN_Messages{}, nil
-    }
-    return nil, fmt.Errorf("unknown language tag: %s", tag)
+// Utility methods
+func MessagesFor(tag string) (Messages, bool) { ... }
+
+func MessagesForMust(tag string) Messages { ... }
+
+func MessagesForOrDefault(tag string) Messages { ... }
+
+type Messages interface{
+    WhereAmI() string
+    NestedMessages() nestedMessages
+    MultilineMessage(user string, amount float64) string
+    ConditionalMessages(amount int) string
+}
+type nestedMessages interface{
+    Simple() string
+    Parametrized(amount int) string
 }
 
-func MessagesForMust(tag string) Messages {
-    if tag == "en-EN" {
-        return en_EN_Messages{}, nil
-    }
-    panic(fmt.Errorf("unknown language tag: %s", tag))
-}
+// Struct that implements Messages returning the messages defined in the language file
+type en_EN_Messages struct{}
+// More code... See examples/lang/generated_lang.go for all of it
+```
 
-func MessagesForOrDefault(tag string) Messages {
-    if tag == "en-EN" {
-        return en_EN_Messages{}
-    }
-    return en_EN_Messages{} // when calling the generator, en-EN was specified as default
-}
+Now you can get an instance of your messages and use them!
 
-type Messages interface {
-    Key1() string
-    Key2(arg any) string
-    Key3(arg int) string
-    Key4(arg1 int, arg2 float64) string
-    Key5() MessagesKey5
-    Key6(messages int) string
-    Key7(messages int) string
-}
+```go
+func main() {
+	bundle := lang.MessagesForMust("en-EN")
 
-type MessagesKey5 interface {
-    Key1() string
-}
+	fmt.Println(bundle.WhereAmI())
+    // Assume this json is in the file "en-EN.json"
 
-type en_EN_Messages struct {}
-type en_EN_Messages_Key5 struct {}
-func (en_EN_Messages) Key1() string { return "message" }
-func (en_EN_Messages) Key2(arg any) string { return fmt.Sprintf("message with %v", arg) }
-func (en_EN_Messages) Key3(arg int) string { return fmt.Sprintf("message with %d used twice %d", arg, arg)  }
-func (en_EN_Messages) Key4(arg1 int, arg2 float64) string { return fmt.Sprintf("message with %d and %.2f", arg1, arg2)  }
-func (en_EN_Messages) Key5() MessagesKey5 { return en_EN_Messages_Key5{}   }
-func (en_EN_Messages_Key5) Key1() string { return "nested message" }
-func (en_EN_Messages) Key6(messages int) string {
-    if messages == 0 {
-        return "You don't have any messages."
-    } else if messages == 1 {
-        return "You have one new message."
-    } else {
-        return fmt.Sprintf("You have %d new messages.", messages)
-    }
-}
-func (en_EN_Messages) Key7(messages int) string {
-        if messages == 0 {
-        return "You don't have any messages."
-    } else if messages == 1 {
-        return "You have one new message."
-    } else {
-        return "You have several new messages."
-    }
+	fmt.Println(bundle.NestedMessages().Parametrized(4))
+    // This message has an amount parameter of type int: 4
+
+	fmt.Println(bundle.ConditionalMessages(100))
+	/*
+		This is the "else" branch
+		This multiline message is used
+		And shows the amount: 100
+	*/
+
+    fmt.Println(bundle.MultilineMessage("MrNemo64", 13.1267))
+	/*
+		Hello MrNemo64!
+		Messages can be multiline
+		And each one can have parameters
+		This one has a float formated with 2 decimals! 13.13
+	*/
 }
 ```
+
+## Installing and using
+
+Install by cloning the repository and running `make install` or by running `go install github.com/MrNemo64/go-n-i18n/cmd/i18n@v0.0.3`.
+
+To use it you must invoke the generator. This can be done by using a specifig file in your language folder as such:
+
+```go
+package lang
+
+// use en-EN as default language and start looking for language files in the current directory
+//go:generate i18n -default-language en-EN -messages .
+```
+
+Or by manually running the command.
+
+## More information
+
+See the [wiki](https://github.com/MrNemo64/go-n-i18n/wiki) for more details on how to use the tool.

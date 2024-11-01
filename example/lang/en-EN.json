@@ -1,25 +1,22 @@
 {
-  "first": "first",
-  "seccond_message": "seccond message",
-  "message_with_args": "this message embeds a string '{str:string}', a number {num:int}, a boolean {b:bool}, an unknwon type {u} and a formatted float {f:f64:.2g}",
-  "in": {
-    "depeer": "this message is deeper but not because of dirs",
-    "even-deeper": {
-      "msg": "r/im14andthisisdeep"
-    }
+  "where-am-i": "Assume this json is in the file \"en-EN.json\"",
+  "nested-messages": {
+    "simple": "This is just a simple message nested into \"nested-messages\"",
+    "parametrized": "This message has an amount parameter of type int: {amount:int}"
   },
-  "?conditional-with-else": {
-    "messages == 0": "No new messages",
-    "messages == 1": "One new message",
-    "": "You have {messages:int} new messages"
-  },
-  "?conditional-without-else": {
-    "messages == 0": "No new messages",
-    "messages == 1": "One new message",
-    "messages > 1000": [
-      "{user:str}, you seem to be popular!",
-      "You have {messages:int} new messages :o"
-    ],
-    "messages > 1": "You have {messages:int} new messages"
+  "multiline-message": [
+    "Hello {user:str}!",
+    "Messages can be multiline",
+    "And each one can have parameters",
+    "This one has a float formated with 2 decimals! {amount:float64:.2f}"
+  ],
+  "?conditional-messages": {
+    "amount == 0": "If amount is 0, this message is used",
+    "amount == 1": "This message is returned if the amount is 1",
+    "": [
+      "This is the \"else\" branch",
+      "This multiline message is used",
+      "And shows the amount: {amount:int}"
+    ]
   }
 }
