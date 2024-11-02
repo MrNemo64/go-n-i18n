@@ -89,6 +89,17 @@ func main() {
 }
 ```
 
+## Why?
+
+Because its fun to do and the way I prefer to i18n my apps.
+Also I really dislike using simple strings to identify messages,
+I tend to forget the string I just used to identify a message making me have to go check it.
+Also this way there is really no need to check them as your auto complete will show all of them.
+It is also impossible to miss-type a message identifier since the code will just not compile
+and we have next to none runtime cost as it's just method calls instead of having to look into a map.
+Parameters also benefit from this as now there is no need to put them in a map (-1 allocation)
+and it's also impossible to misstype the name of the argument.
+
 ## Installing and using
 
 Install by cloning the repository and running `make install` or by running `go install github.com/MrNemo64/go-n-i18n/cmd/i18n@v0.0.3`.
