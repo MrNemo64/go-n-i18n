@@ -77,3 +77,69 @@ Conditions and their respective associated message are specified as key-value pa
 ```
 
 ## Message nesting / Grouping messages
+
+Messages can be grouped or nested by nesting json objets.
+By nesting messages, a separation is done and each group of messages is placed into their own interface and structs.
+This way autocompletion of messages is not polluted with hunderds of messages and its easyer to navigate them.
+It also means that each part of a program can receive only the interface with the messages it needs.
+
+```json
+{
+  "key-level-1": {
+    "key-level-2": {
+      "key-level-3": "Assume this message is in the file `en-EN.json`"
+    }
+  }
+}
+```
+
+To get the message we need to call `messages.KeyLevel1().KeyLevel2().KeyLevel3()`.
+
+Another way of nesting messages is using folders to nest files.
+
+```json
+{
+  "key-level-3": "Assume this message is in the file `key-level-1/key-level-2/en-EN.json`"
+}
+```
+
+To get this message we also need to call `messages.KeyLevel1().KeyLevel2().KeyLevel3()`.
+
+Nested levels can be defined by using nested json objects, nesting files in folders or both.
+
+### Interface renaming
+
+By default the name used to create the interface of nested groups of messages is the full path of the group of messages.
+In the example above, 3 interfaces would have been generated: `Messages`, `keyLevel1` and `keyLevel1keyLevel2` (if `public-non-named-interfaces` is specified when generating the code, the names would been `Messages`, `KeyLevel1` and `KeyLevel1KeyLevel2` to make all of them public).
+
+When nesting too much, these interface names can get long.
+Since we may want to use some of the generated interfaces in our code, we can provide a name for them in the json by putting `:name` after the key of the group of messages.
+
+```json
+{
+  "key-level-1:l1": {
+    "key-level-2:l2": {
+      "key-level-3": "Assume this message is in the file `en-EN.json`"
+    }
+  }
+}
+```
+
+In this case since we renamed the keys to `l1` and `l2` the generated interfaces will be named `Messages`, `L1` and `L2`.
+If we want to rename a group specified by folders, since `:` is not a valid character for folder names, we can rename the key in the parent group of messages with an empty json object.
+
+```json
+{
+  "key-level-3": "Assume this message is in the file `key-level-1/key-level-2/en-EN.json`"
+}
+```
+
+```json
+{
+  "key-level-1:l1": {
+    "key-level-2:l2": {}
+  }
+}
+```
+
+Here we renamed both groups of messages even though these groups are defined by folders and not by nesting json objects.

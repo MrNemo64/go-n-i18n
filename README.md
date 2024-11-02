@@ -106,4 +106,4 @@ Or by manually running the command.
 
 ## More information
 
-See the [wiki](https://github.com/MrNemo64/go-n-i18n/wiki) for more details on how to use the tool.
+See the [wiki](https://github.com/MrNemo64/go-n-i18n/wiki) or the [docs](https://github.com/MrNemo64/go-n-i18n/tree/main/docs) folder for more details on how to use the tool.
