@@ -72,20 +72,20 @@ func main() {
   fmt.Println(bundle.NestedMessages().Parametrized(4))
   // This message has an amount parameter of type int: 4
 
-	fmt.Println(bundle.ConditionalMessages(100))
-	/*
+  fmt.Println(bundle.ConditionalMessages(100))
+  /*
     This is the "else" branch
     This multiline message is used
     And shows the amount: 100
-	*/
+  */
 
     fmt.Println(bundle.MultilineMessage("MrNemo64", 13.1267))
-	/*
+  /*
     Hello MrNemo64!
     Messages can be multiline
     And each one can have parameters
     This one has a float formated with 2 decimals! 13.13
-	*/
+  */
 }
 ```
 
