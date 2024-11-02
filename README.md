@@ -1,7 +1,6 @@
 # go-n-i18n
 
-A code generation tool writen in go and inspired by [ParaglideJS](https://inlang.com/m/gerre34r/library-inlang-paraglideJs)
-for type safe and feature rich internationalization.
+A Go-based code generation tool for type-safe, efficient, and feature-rich internationalization inspired by [ParaglideJS](https://inlang.com/m/gerre34r/library-inlang-paraglideJs). It automatically generates code to ensure type safety, improve code readability, and eliminate runtime errors when handling localized messages.
 
 ## How it works
 
@@ -11,26 +10,26 @@ Here is an example:
 
 ```JSON
 {
-  "where-am-i": "Assume this json is in the file \"en-EN.json\"",
-  "nested-messages": {
-    "simple": "This is just a simple message nested into \"nested-messages\"",
-    "parametrized": "This message has an amount parameter of type int: {amount:int}"
-  },
-  "multiline-message": [
-    "Hello {user:str}!",
-    "Messages can be multiline",
-    "And each one can have parameters",
-    "This one has a float formated with 2 decimals! {amount:float64:.2f}"
-  ],
-  "?conditional-messages": {
-    "amount == 0": "If amount is 0, this message is used",
-    "amount == 1": "This message is returned if the amount is 1",
-    "": [
-      "This is the \"else\" branch",
-      "This multiline message is used",
-      "And shows the amount: {amount:int}"
-    ]
-  }
+    "where-am-i": "Assume this json is in the file \"en-EN.json\"",
+    "nested-messages": {
+        "simple": "This is just a simple message nested into \"nested-messages\"",
+        "parametrized": "This message has an amount parameter of type int: {amount:int}"
+    },
+    "multi-line-message": [
+        "Hello {user:str}!",
+        "Messages can be multi-line",
+        "And each one can have parameters",
+        "This one has a float formatted with 2 decimals! {amount:float64:.2f}"
+    ],
+    "?conditional-messages": {
+        "amount == 0": "If amount is 0, this message is used",
+        "amount == 1": "This message is returned if the amount is 1",
+        "": [
+            "This is the \"else\" branch",
+            "This multi-line message is used",
+            "And shows the amount: {amount:int}"
+        ]
+    }
 }
 ```
 
@@ -42,12 +41,13 @@ func MessagesFor(tag string) (Messages, bool) { ... }
 
 func MessagesForMust(tag string) Messages { ... }
 
+// Default is the language specified as default when running the tool
 func MessagesForOrDefault(tag string) Messages { ... }
 
 type Messages interface{
     WhereAmI() string
     NestedMessages() nestedMessages
-    MultilineMessage(user string, amount float64) string
+    MultiLineMessage(user string, amount float64) string
     ConditionalMessages(amount int) string
 }
 type nestedMessages interface{
@@ -75,14 +75,14 @@ func main() {
   fmt.Println(bundle.ConditionalMessages(100))
   /*
     This is the "else" branch
-    This multiline message is used
+    This multi-line message is used
     And shows the amount: 100
   */
 
-    fmt.Println(bundle.MultilineMessage("MrNemo64", 13.1267))
+    fmt.Println(bundle.multi-lineMessage("MrNemo64", 13.1267))
   /*
     Hello MrNemo64!
-    Messages can be multiline
+    Messages can be multi-line
     And each one can have parameters
     This one has a float formated with 2 decimals! 13.13
   */
@@ -91,20 +91,18 @@ func main() {
 
 ## Why?
 
-Because its fun to do and the way I prefer to i18n my apps.
-Also I really dislike using simple strings to identify messages,
-I tend to forget the string I just used to identify a message making me have to go check it.
-Also this way there is really no need to check them as your auto complete will show all of them.
-It is also impossible to miss-type a message identifier since the code will just not compile
-and we have next to none runtime cost as it's just method calls instead of having to look into a map.
-Parameters also benefit from this as now there is no need to put them in a map (-1 allocation)
-and it's also impossible to misstype the name of the argument.
+`go-n-i18n` offers a different approach to internationalization by moving most of the work into compile-time with several advantages:
+
+- **Type-safe message access**: By generating functions for each message, it eliminates runtime errors from mistyped or missing message identifiers.
+- **Improved code readability**: Autocomplete surfaces all available messages, so developers don’t need to remember or look up message identifiers.
+- **Efficient parameter handling**: Parameters are passed as function arguments instead of map allocations, reducing memory overhead.
+- **Compile-time error checking**: Any misidentified messages result in compile-time errors, ensuring your code is correct before runtime.
 
 ## Installing and using
 
 Install by cloning the repository and running `make install` or by running `go install github.com/MrNemo64/go-n-i18n/cmd/i18n@v0.0.3`.
 
-To use it you must invoke the generator. This can be done by using a specifig file in your language folder as such:
+To use it you must invoke the generator. This can be done by using a specific file in your language folder as a generator:
 
 ```go
 package lang

@@ -4,18 +4,18 @@
     "simple": "This is just a simple message nested into \"nested-messages\"",
     "parametrized": "This message has an amount parameter of type int: {amount:int}"
   },
-  "multiline-message": [
+  "multi-line-message": [
     "Hello {user:str}!",
-    "Messages can be multiline",
+    "Messages can be multi-line",
     "And each one can have parameters",
-    "This one has a float formated with 2 decimals! {amount:float64:.2f}"
+    "This one has a float formatted with 2 decimals! {amount:float64:.2f}"
   ],
   "?conditional-messages": {
     "amount == 0": "If amount is 0, this message is used",
     "amount == 1": "This message is returned if the amount is 1",
     "": [
       "This is the \"else\" branch",
-      "This multiline message is used",
+      "This multi-line message is used",
       "And shows the amount: {amount:int}"
     ]
   }

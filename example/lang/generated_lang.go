@@ -35,7 +35,7 @@ func MessagesForOrDefault(tag string) Messages {
 type Messages interface{
     WhereAmI() string
     NestedMessages() nestedMessages
-    MultilineMessage(user string, amount float64) string
+    MultiLineMessage(user string, amount float64) string
     ConditionalMessages(amount int) string
 }
 type nestedMessages interface{
@@ -57,11 +57,11 @@ func (en_EN_nestedMessages) Simple() string {
 func (en_EN_nestedMessages) Parametrized(amount int) string {
     return fmt.Sprintf("This message has an amount parameter of type int: %d", amount)
 }
-func (en_EN_Messages) MultilineMessage(user string, amount float64) string {
+func (en_EN_Messages) MultiLineMessage(user string, amount float64) string {
     return fmt.Sprintf("Hello %s!", user) + "\n" +
-        "Messages can be multiline" + "\n" +
+        "Messages can be multi-line" + "\n" +
         "And each one can have parameters" + "\n" +
-        fmt.Sprintf("This one has a float formated with 2 decimals! %.2f", amount)
+        fmt.Sprintf("This one has a float formatted with 2 decimals! %.2f", amount)
 }
 func (en_EN_Messages) ConditionalMessages(amount int) string {
     if amount == 0 {
@@ -70,7 +70,7 @@ func (en_EN_Messages) ConditionalMessages(amount int) string {
         return "This message is returned if the amount is 1"
     } else {
         return "This is the \"else\" branch" + "\n" +
-            "This multiline message is used" + "\n" +
+            "This multi-line message is used" + "\n" +
             fmt.Sprintf("And shows the amount: %d", amount)
     }
 }
