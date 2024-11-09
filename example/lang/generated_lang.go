@@ -42,7 +42,7 @@ type Messages interface{
 type nestedMessages interface{
     Simple() string
     Parametrized(amount int) string
-    ParametrizedWithArgs(notUsed int) string
+    ParametrizedWithArgs(notUsed any) string
 }
 
 type en_EN_Messages struct{}
@@ -59,8 +59,8 @@ func (en_EN_nestedMessages) Simple() string {
 func (en_EN_nestedMessages) Parametrized(amount int) string {
     return fmt.Sprintf("This message has an amount parameter of type int: %d", amount)
 }
-func (en_EN_nestedMessages) ParametrizedWithArgs(notUsed int) string {
-    return fmt.Sprintf("This message is parametrized by `%d` even if the variable is not used", notUsed)
+func (en_EN_nestedMessages) ParametrizedWithArgs(notUsed any) string {
+    return "This message is parametrized by `notUsed` even if the variable is not used"
 }
 func (en_EN_Messages) MultiLineMessage(user string, amount float64) string {
     return fmt.Sprintf("Hello %s!", user) + "\n" +
