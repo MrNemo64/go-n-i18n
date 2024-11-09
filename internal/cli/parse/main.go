@@ -13,22 +13,23 @@ import (
 )
 
 var (
-	ErrNextFile                    util.Error = util.MakeError("could get next file to parse: %w")
-	ErrIO                                     = util.MakeError("could not read contents of file %s: %w")
-	ErrUnmarshal                              = util.MakeError("could not unmarshal contents of file %s: %w")
-	ErrInvalidKeyName                         = util.MakeError("invalid key in path %s: %w")
-	ErrInvalidBagName                         = util.MakeError("invalid bag name in path %s: %w")
-	ErrBagNameReasignation                    = util.MakeError("the bag %s in the lang %s has the name %s but it got reasigned to %s")
-	ErrUnknownEntryType                       = util.MakeError("could not identify the type of entry in the path %s: %+v")
-	ErrAddChildren                            = util.MakeError("could not add child %s to %s: %w")
-	ErrUnknwonArgumentType                    = util.MakeError("unknown argument type '%s' in path %s, using the unknown type")
-	ErrInvalidConditionalEntry                = util.MakeError("the entry %s in the lang %s is marked as conditional but no conditions are provided")
-	ErrInvalidConditionalCondition            = util.MakeError("the condition %s in the path %s in the lang %s is not a valid conditional value")
-	ErrInvalidConditional                     = util.MakeError("the conditional in the path %s in the lang %s is not a valid: %w")
-
-	ErrKeyIsConditionalButValueIsNotObject = util.MakeError("invalid key '%s': has the ? prefix so it's a conditional key but the value is not an object: %v")
-	ErrCouldNotAddEntry                    = util.MakeError("could not add %s entry %s: %w")
-	ErrCouldNotAddArg                      = util.MakeError("could not add argument {%s:%s:%s}: %w")
+	ErrNextFile                                = util.MakeError("could get next file to parse: %w")
+	ErrIO                                      = util.MakeError("could not read contents of file %s: %w")
+	ErrUnmarshal                               = util.MakeError("could not unmarshal contents of file %s: %w")
+	ErrInvalidKeyName                          = util.MakeError("invalid key in path %s: %w")
+	ErrInvalidBagName                          = util.MakeError("invalid bag name in path %s: %w")
+	ErrBagNameReasignation                     = util.MakeError("the bag %s in the lang %s has the name %s but it got reasigned to %s")
+	ErrUnknownEntryType                        = util.MakeError("could not identify the type of entry in the path %s: %+v")
+	ErrAddChildren                             = util.MakeError("could not add child %s to %s: %w")
+	ErrUnknwonArgumentType                     = util.MakeError("unknown argument type '%s' in path %s of language %s, using the unknown type")
+	ErrInvalidConditionalEntry                 = util.MakeError("the entry %s in the lang %s is marked as conditional but no conditions are provided")
+	ErrInvalidConditionalCondition             = util.MakeError("the condition %s in the path %s in the lang %s is not a valid conditional value")
+	ErrInvalidConditional                      = util.MakeError("the conditional in the path %s in the lang %s is not a valid: %w")
+	ErrInvalidMessageValueDefinition           = util.MakeError("the key %s in the lang %s is not a valid message value, it must has 2 entries but it has %d")
+	ErrInvalidMessageValueMissingArgs          = util.MakeError("the key %s in the lang %s is not a valid message value, it is missing the _args entry")
+	ErrInvalidMessageValueArgsIsNotStringSlice = util.MakeError("the key %s in the lang %s is not a valid message value, _args is not a string slice")
+	ErrInvalidMessageValueArgsTooManyParts     = util.MakeError("the key %s in the lang %s is not a valid message value, the arg '%s' specifies too many parts")
+	ErrInvalidMessageValueMissingMessage       = util.MakeError("the key %s in the lang %s is not a valid message value, it is missing the _message entry")
 )
 
 var ArgumentExtractor = regexp.MustCompile(`\{([a-zA-Z_]\w*):?(\w*)?:?([\w\.]*)?\}`)
@@ -36,6 +37,12 @@ var ArgumentExtractor = regexp.MustCompile(`\{([a-zA-Z_]\w*):?(\w*)?:?([\w\.]*)?
 type JsonParser struct {
 	*util.WarningsCollector
 	argProvider *types.ArgumentProvider
+}
+
+type messageValueParts struct {
+	args    *types.ArgumentList
+	value   any
+	message any
 }
 
 func ParseJson(walker DirWalker, wc *util.WarningsCollector, argProvider *types.ArgumentProvider) (*types.MessageBag, error) {
@@ -79,20 +86,25 @@ func (p *JsonParser) ParseGroupOfMessagesInto(dest *types.MessageBag, entries *o
 		if !found {
 			panic(fmt.Errorf("the ordered map is missing the key '%s', this is a bug in the github.com/iancoleman/orderedmap library. Dest: %s", key, dest.PathAsStr()))
 		}
+		fullkey := types.PathAsStr(types.ResolveFullPath(dest, key))
 
 		if strings.HasPrefix(key, "?") { // is conditional?
 			key = key[1:]
 			if err := types.CheckKey(key); err != nil {
-				p.AddWarning(ErrInvalidKeyName.WithArgs(types.PathAsStr(types.ResolveFullPath(dest, key)), err))
+				p.AddWarning(ErrInvalidKeyName.WithArgs(fullkey, err))
 				continue
 			}
-			mapValue, ok := value.(orderedmap.OrderedMap)
+			messageParts, ok := p.extractMessageValueParts(value, true, fullkey, lang)
 			if !ok {
-				p.WarningsCollector.AddWarning(ErrInvalidConditionalEntry.WithArgs(types.PathAsStr(types.ResolveFullPath(dest, key)), lang))
 				continue
 			}
-			args := types.NewArgumentList()
-			parsed, ok := p.ParseConditionalMessageValue(types.PathAsStr(types.ResolveFullPath(dest, key)), &mapValue, args, lang)
+			mapValue, ok := messageParts.message.(orderedmap.OrderedMap)
+			if !ok {
+				p.WarningsCollector.AddWarning(ErrInvalidConditionalEntry.WithArgs(fullkey, lang))
+				continue
+			}
+			args := messageParts.args
+			parsed, ok := p.ParseConditionalMessageValue(fullkey, &mapValue, args, lang)
 			if !ok {
 				continue
 			}
@@ -106,77 +118,151 @@ func (p *JsonParser) ParseGroupOfMessagesInto(dest *types.MessageBag, entries *o
 			continue
 		}
 
-		if inner, ok := value.(orderedmap.OrderedMap); ok { // is bag or parametrized with `_args` to specify args
-			if _, found := inner.Get("_args"); found { // parametrized with `_args`
-				panic("todo")
-			} else { // bag
-				name := ""
-				if strings.Contains(key, ":") {
-					parts := strings.SplitN(key, ":", 2)
-					if len(parts) == 1 || parts[1] == "" {
-						name = parts[0]
-					} else {
-						name = parts[1]
-					}
-					key = key[:strings.Index(key, ":")]
-				}
-
-				if err := types.CheckKey(key); err != nil {
-					p.AddWarning(ErrInvalidKeyName.WithArgs(types.PathAsStr(types.ResolveFullPath(dest, key)), err))
-					continue
-				}
-
-				newDest, err := dest.FindOrCreateChildBag(key)
-				if err != nil {
-					p.AddWarning(ErrAddChildren.WithArgs(key, dest.PathAsStr(), err))
-					continue
-				}
-				if newDest.Name == "" && name != "" {
-					if err := types.CheckName(name); err != nil {
-						p.AddWarning(ErrInvalidBagName.WithArgs(types.PathAsStr(types.ResolveFullPath(dest, key)), err))
-						continue
-					}
-					newDest.Name = name
-				} else if newDest.Name != name && name != "" {
-					p.WarningsCollector.AddWarning(ErrBagNameReasignation.WithArgs(types.PathAsStr(types.ResolveFullPath(dest, key)), lang, newDest.Name, name))
-					continue
-				}
-				if err := p.ParseGroupOfMessagesInto(newDest, &inner, lang); err != nil {
+		if inner, ok := value.(orderedmap.OrderedMap); ok { // is bag or parametrized with `_message`
+			if _, found := inner.Get("_message"); !found { // bag
+				if err := p.processBag(dest, key, &inner, lang); err != nil {
 					return err
 				}
 				continue
 			}
 		}
 
-		if err := types.CheckKey(key); err != nil {
-			p.AddWarning(ErrInvalidKeyName.WithArgs(types.PathAsStr(types.ResolveFullPath(dest, key)), err))
-			continue
-		}
-
-		args := types.NewArgumentList()
-		parsed, ok := p.ParseMessageValue(types.PathAsStr(types.ResolveFullPath(dest, key)), value, args)
+		messageParts, ok := p.extractMessageValueParts(value, false, fullkey, lang)
 		if !ok {
 			continue
 		}
-		newEntry, err := types.NewMessageInstance(key)
-		assert.NoError(err)                                // key is valid, we checked it above
-		assert.NoError(newEntry.AddArgs(args))             // entry is empty, it must accept the new args
-		assert.NoError(newEntry.AddLanguage(lang, parsed)) // entry is empty, it must accept the new language
-		if err := dest.AddChildren(newEntry); err != nil {
-			p.AddWarning(ErrAddChildren.WithArgs(key, dest.PathAsStr(), err))
-		}
+		p.processMessage(dest, key, &messageParts, lang)
 	}
 	return nil
 }
 
-func (p *JsonParser) ParseMessageValue(fullKey string, value any, argList *types.ArgumentList) (types.MessageValue, bool) {
+func (p *JsonParser) extractMessageValueParts(value any, extractingConditional bool, fullkey, lang string) (messageValueParts, bool) {
+	messageValueParts := messageValueParts{
+		args:    types.NewArgumentList(),
+		value:   value,
+		message: value,
+	}
+	inner, ok := value.(orderedmap.OrderedMap)
+	if !ok {
+		return messageValueParts, true
+	}
+	if extractingConditional {
+		if _, hasMessage := inner.Get("_message"); !hasMessage {
+			return messageValueParts, true
+		}
+	}
+	if len(inner.Keys()) != 2 {
+		p.AddWarning(ErrInvalidMessageValueDefinition.WithArgs(fullkey, lang, len(inner.Keys())))
+		return messageValueParts, false
+	}
+	definedArgsAny, found := inner.Get("_args")
+	if !found {
+		p.AddWarning(ErrInvalidMessageValueMissingArgs.WithArgs(fullkey, lang))
+		return messageValueParts, false
+	}
+	message, found := inner.Get("_message")
+	if !found {
+		p.AddWarning(ErrInvalidMessageValueMissingMessage.WithArgs(fullkey, lang))
+		return messageValueParts, false
+	}
+	messageValueParts.message = message
+	definedArgs, ok := definedArgsAny.([]any)
+	if !ok || !p.IsStringSlice(definedArgs) {
+		p.AddWarning(ErrInvalidMessageValueArgsIsNotStringSlice.WithArgs(fullkey, lang))
+		return messageValueParts, false
+	}
+	for _, argStr := range definedArgs {
+		argParts := strings.Split(argStr.(string), ":") // safe cast since this is a string slice
+		if len(argParts) > 2 {
+			p.AddWarning(ErrInvalidMessageValueArgsTooManyParts.WithArgs(fullkey, lang, argStr))
+			continue
+		}
+		argType := p.argProvider.UnknwonType()
+		if len(argParts) == 2 {
+			argType, found = p.argProvider.FindArgument(argParts[1])
+			if !found {
+				p.WarningsCollector.AddWarning(ErrUnknwonArgumentType.WithArgs(argParts[1], fullkey, lang))
+				argType = p.argProvider.UnknwonType()
+			}
+		}
+		messageValueParts.args.AddArgument(&types.MessageArgument{
+			Name: argParts[0],
+			Type: argType,
+		})
+	}
+	return messageValueParts, true
+}
+
+func (p *JsonParser) processBag(dest *types.MessageBag, key string, inner *orderedmap.OrderedMap, lang string) error {
+	name := ""
+	if strings.Contains(key, ":") {
+		parts := strings.SplitN(key, ":", 2)
+		if len(parts) == 1 || parts[1] == "" {
+			name = parts[0]
+		} else {
+			name = parts[1]
+		}
+		key = key[:strings.Index(key, ":")]
+	}
+
+	if err := types.CheckKey(key); err != nil {
+		p.AddWarning(ErrInvalidKeyName.WithArgs(types.PathAsStr(types.ResolveFullPath(dest, key)), err))
+		return nil
+	}
+
+	newDest, err := dest.FindOrCreateChildBag(key)
+	if err != nil {
+		p.AddWarning(ErrAddChildren.WithArgs(key, dest.PathAsStr(), err))
+		return nil
+	}
+	if newDest.Name == "" && name != "" {
+		if err := types.CheckName(name); err != nil {
+			p.AddWarning(ErrInvalidBagName.WithArgs(types.PathAsStr(types.ResolveFullPath(dest, key)), err))
+			return nil
+		}
+		newDest.Name = name
+	} else if newDest.Name != name && name != "" {
+		p.WarningsCollector.AddWarning(ErrBagNameReasignation.WithArgs(types.PathAsStr(types.ResolveFullPath(dest, key)), lang, newDest.Name, name))
+		return nil
+	}
+	if err := p.ParseGroupOfMessagesInto(newDest, inner, lang); err != nil {
+		return err
+	}
+	return nil
+}
+
+func (p *JsonParser) processMessage(dest *types.MessageBag, key string, value *messageValueParts, lang string) bool {
+	if err := types.CheckKey(key); err != nil {
+		p.AddWarning(ErrInvalidKeyName.WithArgs(types.PathAsStr(types.ResolveFullPath(dest, key)), err))
+		return false
+	}
+	fullkey := types.PathAsStr(types.ResolveFullPath(dest, key))
+
+	parsed, ok := p.ParseMessageValue(fullkey, value, lang)
+	if !ok {
+		return false
+	}
+
+	newEntry, err := types.NewMessageInstance(key)
+	assert.NoError(err)                                // key is valid, we checked it above
+	assert.NoError(newEntry.AddArgs(value.args))       // entry is empty, it must accept the new args
+	assert.NoError(newEntry.AddLanguage(lang, parsed)) // entry is empty, it must accept the new language
+	if err := dest.AddChildren(newEntry); err != nil {
+		p.AddWarning(ErrAddChildren.WithArgs(key, dest.PathAsStr(), err))
+	}
+	return true
+}
+
+func (p *JsonParser) ParseMessageValue(fullKey string, valueparts *messageValueParts, lang string) (types.MessageValue, bool) {
+	value := valueparts.message
+	argList := valueparts.args
 	switch value.(type) {
 	case string:
 		str := value.(string)
 		if !p.HasArguments(str) {
 			return types.NewStringLiteralValue(str), true
 		}
-		return p.ParseParametrizedMessage(fullKey, str, argList)
+		return p.ParseParametrizedMessage(fullKey, str, argList, lang)
 	case []any:
 		arr := value.([]any)
 		if len(arr) == 0 || !p.IsStringSlice(arr) {
@@ -189,7 +275,7 @@ func (p *JsonParser) ParseMessageValue(fullKey string, value any, argList *types
 			if !p.HasArguments(str) {
 				lines = append(lines, types.NewStringLiteralValue(str))
 			} else {
-				if parsed, ok := p.ParseParametrizedMessage(fullKey, str, argList); ok {
+				if parsed, ok := p.ParseParametrizedMessage(fullKey, str, argList, lang); ok {
 					lines = append(lines, parsed)
 				} else {
 					return nil, false
@@ -217,7 +303,11 @@ func (p *JsonParser) ParseConditionalMessageValue(fullKey string, value *ordered
 		if !found {
 			panic(fmt.Errorf("the ordered map is missing the key '%s', this is a bug in the github.com/iancoleman/orderedmap library. Dest: %s", condition, fullKey))
 		}
-		parsed, ok := p.ParseMessageValue(fullKey+"."+condition, value, argList)
+		parsed, ok := p.ParseMessageValue(fullKey+"."+condition, &messageValueParts{
+			args:    argList,
+			value:   value,
+			message: value,
+		}, lang)
 		if !ok {
 			finishOk = false
 			continue
@@ -248,7 +338,7 @@ func (p *JsonParser) ParseConditionalMessageValue(fullKey string, value *ordered
 	return cond, true
 }
 
-func (p *JsonParser) ParseParametrizedMessage(fullKey string, str string, argList *types.ArgumentList) (*types.ValueParametrized, bool) {
+func (p *JsonParser) ParseParametrizedMessage(fullKey, str string, argList *types.ArgumentList, lang string) (*types.ValueParametrized, bool) {
 	textSegments, arguments := p.SeparateArgumentsFromText(str)
 	if len(textSegments) != len(arguments)+1 {
 		panic(fmt.Errorf("JsonParser.SeparateArgumentsFromText returned an unexpected amount of text segments (%d) and arguments (%d) for the path %s", len(textSegments), len(arguments), fullKey))
@@ -257,7 +347,7 @@ func (p *JsonParser) ParseParametrizedMessage(fullKey string, str string, argLis
 		argType, found := p.argProvider.FindArgument(foundArg.Type)
 		if !found {
 			if foundArg.Type != "" {
-				p.WarningsCollector.AddWarning(ErrUnknwonArgumentType.WithArgs(foundArg.Type, fullKey))
+				p.WarningsCollector.AddWarning(ErrUnknwonArgumentType.WithArgs(foundArg.Type, fullKey, lang))
 			}
 			argType = p.argProvider.UnknwonType()
 		}
