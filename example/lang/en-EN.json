@@ -2,7 +2,11 @@
   "where-am-i": "Assume this json is in the file \"en-EN.json\"",
   "nested-messages": {
     "simple": "This is just a simple message nested into \"nested-messages\"",
-    "parametrized": "This message has an amount parameter of type int: {amount:int}"
+    "parametrized": "This message has an amount parameter of type int: {amount:int}",
+    "parametrized-with-args": {
+      "_args": ["notUsed"],
+      "_message": "This message is parametrized by `notUsed` even if the variable is not used"
+    }
   },
   "multi-line-message": [
     "Hello {user:str}!",
@@ -18,5 +22,17 @@
       "This multi-line message is used",
       "And shows the amount: {amount:int}"
     ]
+  },
+  "?conditional-messages-with-condition-arg": {
+    "_args": ["amount:int", "notUsed"],
+    "_message": {
+      "amount == 0": "If amount is 0, this message is used",
+      "amount == 1": "This message is returned if the amount is 1",
+      "": [
+        "This is the \"else\" branch",
+        "This multi-line message is used",
+        "But the ammount is not displayed"
+      ]
+    }
   }
 }

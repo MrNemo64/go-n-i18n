@@ -25,13 +25,7 @@ func (err Error) Error() string {
 
 func (err Error) Is(other error) bool {
 	casted, ok := other.(Error)
-	if !ok {
-		return false
-	}
-	if casted.msg == err.msg {
-		return true
-	}
-	return false
+	return ok && casted.msg == err.msg
 }
 
 func (err Error) Unwrap() []error {

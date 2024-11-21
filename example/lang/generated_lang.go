@@ -37,10 +37,12 @@ type Messages interface{
     NestedMessages() nestedMessages
     MultiLineMessage(user string, amount float64) string
     ConditionalMessages(amount int) string
+    ConditionalMessagesWithConditionArg(amount int, notUsed any) string
 }
 type nestedMessages interface{
     Simple() string
     Parametrized(amount int) string
+    ParametrizedWithArgs(notUsed any) string
 }
 
 type en_EN_Messages struct{}
@@ -57,6 +59,9 @@ func (en_EN_nestedMessages) Simple() string {
 func (en_EN_nestedMessages) Parametrized(amount int) string {
     return fmt.Sprintf("This message has an amount parameter of type int: %d", amount)
 }
+func (en_EN_nestedMessages) ParametrizedWithArgs(notUsed any) string {
+    return "This message is parametrized by `notUsed` even if the variable is not used"
+}
 func (en_EN_Messages) MultiLineMessage(user string, amount float64) string {
     return fmt.Sprintf("Hello %s!", user) + "\n" +
         "Messages can be multi-line" + "\n" +
@@ -72,6 +77,17 @@ func (en_EN_Messages) ConditionalMessages(amount int) string {
         return "This is the \"else\" branch" + "\n" +
             "This multi-line message is used" + "\n" +
             fmt.Sprintf("And shows the amount: %d", amount)
+    }
+}
+func (en_EN_Messages) ConditionalMessagesWithConditionArg(amount int, notUsed any) string {
+    if amount == 0 {
+        return "If amount is 0, this message is used"
+    } else if amount == 1 {
+        return "This message is returned if the amount is 1"
+    } else {
+        return "This is the \"else\" branch" + "\n" +
+            "This multi-line message is used" + "\n" +
+            "But the ammount is not displayed"
     }
 }
 

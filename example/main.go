@@ -17,7 +17,7 @@ func main() {
 		This multiline message is used
 		And shows the amount: 100
 	*/
-	fmt.Println(bundle.MultilineMessage("MrNemo64", 13.1267))
+	fmt.Println(bundle.MultiLineMessage("MrNemo64", 13.1267))
 	/*
 		Hello MrNemo64!
 		Messages can be multiline
